@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION="0.1.0"
+
+# Resolve the repo root from the script's location
+SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_SOURCE" ]; do
+  SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+  SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+  [[ "$SCRIPT_SOURCE" != /* ]] && SCRIPT_SOURCE="$SCRIPT_DIR/$SCRIPT_SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+export STAFF_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+source "$STAFF_ROOT/lib/staff/_common.sh"
+
+usage() {
+  cat <<EOF
+${BOLD}staff${RESET} v${VERSION} — manage AI tooling
+
+${BOLD}Usage:${RESET}
+  staff <command> [options]
+
+${BOLD}Commands:${RESET}
+  list              List projects in the registry
+  install           Install/wire up a project
+  uninstall         Remove an installed project
+  build             Build a project
+  init              Scaffold a new project from a template
+  doctor            Check installation health
+  registry rebuild  Rebuild the registry from staff.json files
+
+${BOLD}Options:${RESET}
+  -h, --help        Show this help
+  -v, --version     Show version
+
+Run ${BOLD}staff <command> --help${RESET} for command-specific help.
+EOF
+}
+
+if [ $# -eq 0 ]; then
+  usage
+  exit 0
+fi
+
+case "$1" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  -v|--version)
+    echo "staff v${VERSION}"
+    exit 0
+    ;;
+  list)
+    shift
+    source "$STAFF_ROOT/lib/staff/cmd_list.sh"
+    cmd_list "$@"
+    ;;
+  install)
+    shift
+    source "$STAFF_ROOT/lib/staff/cmd_install.sh"
+    cmd_install "$@"
+    ;;
+  uninstall)
+    shift
+    source "$STAFF_ROOT/lib/staff/cmd_uninstall.sh"
+    cmd_uninstall "$@"
+    ;;
+  build)
+    shift
+    source "$STAFF_ROOT/lib/staff/cmd_build.sh"
+    cmd_build "$@"
+    ;;
+  init)
+    shift
+    source "$STAFF_ROOT/lib/staff/cmd_init.sh"
+    cmd_init "$@"
+    ;;
+  doctor)
+    shift
+    source "$STAFF_ROOT/lib/staff/cmd_doctor.sh"
+    cmd_doctor "$@"
+    ;;
+  registry)
+    shift
+    source "$STAFF_ROOT/lib/staff/cmd_registry.sh"
+    cmd_registry "$@"
+    ;;
+  *)
+    error "Unknown command: $1"
+    usage
+    exit 1
+    ;;
+esac
