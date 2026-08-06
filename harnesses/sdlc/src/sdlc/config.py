@@ -6,7 +6,7 @@ from pathlib import Path
 
 MODEL_TIERS: dict[str, dict[str, str]] = {
     "anthropic": {
-        "strongest": "claude-opus-4",
+        "strongest": "claude-opus-5",
         "mid": "claude-sonnet-5",
         "fast": "claude-haiku-4-5",
     },
