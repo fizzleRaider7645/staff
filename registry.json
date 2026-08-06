@@ -1,5 +1,20 @@
 {
   "version": 1,
-  "generated_at": "2026-08-06T02:55:47Z",
-  "projects": []
+  "generated_at": "2026-08-06T03:26:52Z",
+  "projects": [
+    {
+      "name": "sdlc",
+      "category": "harness",
+      "language": "python",
+      "description": "AI-powered SDLC orchestration — plan, architect, implement, verify, review, refine",
+      "status": "alpha",
+      "path": "harnesses/sdlc",
+      "tags": [
+        "sdlc",
+        "orchestration",
+        "multi-provider"
+      ],
+      "version": "0.1.0"
+    }
+  ]
 }

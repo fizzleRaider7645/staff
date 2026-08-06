@@ -41,6 +41,20 @@ Run `staff list` to query it. Run `staff registry rebuild` to regenerate it.
 - **Manifest**: every project has a `staff.json` with name, category, language, description, status, install config.
 - **README per project**: every project has a README explaining what it does and how to run it.
 
+## SDLC Harness
+
+The first project in the repo. Lives at `harnesses/sdlc/`. Python CLI (`sdlc`) for AI-powered development lifecycle orchestration.
+
+```
+cd harnesses/sdlc && pip install -e .    # Install
+sdlc init --prompt "description"          # Start a cycle in any project
+sdlc plan / architect / tasks / ...       # Run individual phases
+sdlc run                                  # Run full sequence with approval gates
+sdlc status                               # Show progress
+```
+
+Architecture: hybrid engine (direct API for thinking phases, `claude` CLI for doing phases), 3 providers (Anthropic/OpenAI/Google), composable phases, file-based state in `.sdlc/`.
+
 ## Adding a new project
 
 Use the CLI: `staff init <category> <name> [--lang ts|python|go]`

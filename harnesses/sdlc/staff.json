@@ -1,0 +1,17 @@
+{
+  "name": "sdlc",
+  "category": "harness",
+  "language": "python",
+  "description": "AI-powered SDLC orchestration — plan, architect, implement, verify, review, refine",
+  "status": "alpha",
+  "version": "0.1.0",
+  "build": {
+    "command": "pip install -e ."
+  },
+  "install": {
+    "type": "tool",
+    "binary": "bin/sdlc",
+    "build_first": true
+  },
+  "tags": ["sdlc", "orchestration", "multi-provider"]
+}
