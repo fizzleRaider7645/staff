@@ -57,6 +57,11 @@ def _build_prompt(sdlc_dir: Path, task_num: int | None) -> str:
         all_tasks = tasks_data.get("tasks", [])
 
         if task_num is not None:
+            if task_num < 1 or task_num > len(all_tasks):
+                raise ValueError(
+                    f"Invalid task number {task_num}: "
+                    f"must be between 1 and {len(all_tasks)}"
+                )
             task = all_tasks[task_num - 1]
         else:
             tasks = [t for t in all_tasks if t.get("status") != "done"]
@@ -75,6 +80,11 @@ def _mark_task_done(sdlc_dir: Path, task_num: int) -> None:
     if not tasks_path.exists():
         return
     data = json.loads(tasks_path.read_text())
-    if task_num <= len(data.get("tasks", [])):
-        data["tasks"][task_num - 1]["status"] = "done"
-        tasks_path.write_text(json.dumps(data, indent=2) + "\n")
+    tasks = data.get("tasks", [])
+    if task_num < 1 or task_num > len(tasks):
+        raise ValueError(
+            f"Invalid task number {task_num}: "
+            f"must be between 1 and {len(tasks)}"
+        )
+    tasks[task_num - 1]["status"] = "done"
+    tasks_path.write_text(json.dumps(data, indent=2) + "\n")

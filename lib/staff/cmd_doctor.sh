@@ -93,14 +93,14 @@ EOF
     if [ "$install_count" -eq 0 ]; then
       info "No projects installed"
     else
-      jq -r '.installations[] | .project' "$STAFF_INSTALLED" | while read -r name; do
+      while read -r name; do
         local entry
         entry=$(jq -r --arg name "$name" '.installations[] | select(.project == $name)' "$STAFF_INSTALLED")
 
         local all_ok=true
 
         # Check symlinks
-        echo "$entry" | jq -r '.symlinks[]? // empty' | while read -r symlink; do
+        while read -r symlink; do
           if [ -L "$symlink" ]; then
             local target
             target=$(readlink "$symlink")
@@ -114,10 +114,10 @@ EOF
             error "$name: missing symlink ($symlink)"
             all_ok=false
           fi
-        done
+        done < <(echo "$entry" | jq -r '.symlinks[]? // empty')
 
         # Check config keys
-        echo "$entry" | jq -r '.config_keys[]? // empty' | while read -r config_key; do
+        while read -r config_key; do
           local settings_target
           settings_target=$(echo "$entry" | jq -r '.target')
           if [ -f "$settings_target" ]; then
@@ -126,10 +126,15 @@ EOF
               ok "$name: config key OK ($config_key)"
             else
               error "$name: missing config key ($config_key in $settings_target)"
+              all_ok=false
             fi
           fi
-        done
-      done
+        done < <(echo "$entry" | jq -r '.config_keys[]? // empty')
+
+        if [ "$all_ok" = false ]; then
+          issues=$((issues + 1))
+        fi
+      done < <(jq -r '.installations[] | .project' "$STAFF_INSTALLED")
     fi
   fi
 

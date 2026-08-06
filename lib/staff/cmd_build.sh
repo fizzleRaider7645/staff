@@ -65,9 +65,7 @@ EOF
   fi
 
   info "Building $project_name..."
-  (cd "$abs_path" && eval "$build_cmd")
-
-  if [ $? -eq 0 ]; then
+  if (cd "$abs_path" && eval "$build_cmd"); then
     ok "Build succeeded: $project_name"
   else
     die "Build failed: $project_name"
