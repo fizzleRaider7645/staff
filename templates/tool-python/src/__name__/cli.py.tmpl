@@ -1,0 +1,29 @@
+from __future__ import annotations
+
+import argparse
+import sys
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        prog="{{NAME}}",
+        description="{{NAME}} — a CLI tool",
+    )
+    parser.add_argument("input", nargs="?", help="input to process")
+    parser.add_argument("--verbose", "-v", action="store_true", help="verbose output")
+    args = parser.parse_args(argv)
+
+    if args.input is None:
+        parser.print_help()
+        sys.exit(0)
+
+    result = process(args.input)
+    print(result)
+
+
+def process(text: str) -> str:
+    return f"Processed: {text}"
+
+
+if __name__ == "__main__":
+    main()

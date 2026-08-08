@@ -1,0 +1,20 @@
+{
+  "name": "{{NAME}}",
+  "category": "mcp",
+  "language": "typescript",
+  "description": "",
+  "status": "draft",
+  "version": "0.1.0",
+  "build": {
+    "command": "npm run build"
+  },
+  "install": {
+    "type": "mcp",
+    "build_first": true,
+    "mcp_config": {
+      "command": "node",
+      "args": ["${PROJECT_ROOT}/dist/index.js"]
+    }
+  },
+  "tags": []
+}

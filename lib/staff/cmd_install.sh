@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 
 cmd_install() {
-  local project_name="" scope="user" target=""
+  local project_name="" scope="user"
 
   while [ $# -gt 0 ]; do
     case "$1" in
       --scope)   scope="$2";  shift 2 ;;
-      --target)  target="$2"; shift 2 ;;
       -h|--help)
         cat <<EOF
 ${BOLD}staff install${RESET} — install/wire up a project

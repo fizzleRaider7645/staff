@@ -132,13 +132,17 @@ scaffold_from_template() {
   author=$(git config user.name 2>/dev/null || echo "")
   local date_str
   date_str=$(date +%Y-%m-%d)
+  local name_under="${name//-/_}"
 
   find "$template_dir" -type f -name "*.tmpl" | while read -r tmpl; do
     local rel="${tmpl#$template_dir/}"
-    local dest="$project_dir/${rel%.tmpl}"
+    rel="${rel%.tmpl}"
+    # Replace __name__ in paths with the underscored project name
+    local dest="$project_dir/${rel//__name__/$name_under}"
     mkdir -p "$(dirname "$dest")"
 
     sed -e "s|{{NAME}}|$name|g" \
+        -e "s|{{NAME_UNDER}}|$name_under|g" \
         -e "s|{{CATEGORY}}|$category|g" \
         -e "s|{{LANGUAGE}}|$lang|g" \
         -e "s|{{DATE}}|$date_str|g" \
@@ -149,7 +153,7 @@ scaffold_from_template() {
   # Copy non-template files as-is
   find "$template_dir" -type f ! -name "*.tmpl" | while read -r file; do
     local rel="${file#$template_dir/}"
-    local dest="$project_dir/$rel"
+    local dest="$project_dir/${rel//__name__/$name_under}"
     mkdir -p "$(dirname "$dest")"
     cp "$file" "$dest"
   done

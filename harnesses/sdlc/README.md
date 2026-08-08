@@ -82,7 +82,7 @@ Each phase is assigned a tier. The tier maps to the best available model for you
 
 | Tier | Anthropic | OpenAI | Google |
 |------|-----------|--------|--------|
-| strongest | claude-opus-4 | gpt-4o | gemini-2.5-pro |
+| strongest | claude-opus-5 | gpt-4o | gemini-2.5-pro |
 | mid | claude-sonnet-5 | gpt-4o-mini | gemini-2.5-flash |
 | fast | claude-haiku-4-5 | gpt-4o-mini | gemini-2.5-flash |
 

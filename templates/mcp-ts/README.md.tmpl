@@ -1,0 +1,42 @@
+# {{NAME}}
+
+MCP server.
+
+## Setup
+
+```bash
+npm install
+npm run build
+```
+
+## Install into Claude Code
+
+```bash
+staff install {{NAME}}
+```
+
+Or manually add to your Claude Code settings:
+
+```json
+{
+  "mcpServers": {
+    "{{NAME}}": {
+      "command": "node",
+      "args": ["/path/to/{{NAME}}/dist/index.js"]
+    }
+  }
+}
+```
+
+## Development
+
+```bash
+npm run dev    # Watch mode
+npm run build  # Production build
+```
+
+## Tools
+
+| Tool | Description |
+|------|-------------|
+| `hello` | Say hello — starter tool, replace with your own |

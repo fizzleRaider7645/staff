@@ -39,23 +39,28 @@ EOF
     return 1
   fi
 
+  local jq_args=()
   local jq_filter='.projects'
 
   if [ -n "$filter_category" ]; then
-    jq_filter="$jq_filter | map(select(.category == \"$filter_category\"))"
+    jq_args+=(--arg cat "$filter_category")
+    jq_filter="$jq_filter | map(select(.category == \$cat))"
   fi
   if [ -n "$filter_language" ]; then
-    jq_filter="$jq_filter | map(select(.language == \"$filter_language\"))"
+    jq_args+=(--arg lang "$filter_language")
+    jq_filter="$jq_filter | map(select(.language == \$lang))"
   fi
   if [ -n "$filter_tag" ]; then
-    jq_filter="$jq_filter | map(select(.tags | index(\"$filter_tag\")))"
+    jq_args+=(--arg tag "$filter_tag")
+    jq_filter="$jq_filter | map(select(.tags | index(\$tag)))"
   fi
   if [ -n "$filter_status" ]; then
-    jq_filter="$jq_filter | map(select(.status == \"$filter_status\"))"
+    jq_args+=(--arg st "$filter_status")
+    jq_filter="$jq_filter | map(select(.status == \$st))"
   fi
 
   local results
-  results=$(jq -r "$jq_filter" "$STAFF_REGISTRY")
+  results=$(jq -r "${jq_args[@]+"${jq_args[@]}"}" "$jq_filter" "$STAFF_REGISTRY")
 
   local count
   count=$(echo "$results" | jq 'length')

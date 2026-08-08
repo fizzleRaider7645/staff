@@ -1,7 +1,21 @@
 {
   "version": 1,
-  "generated_at": "2026-08-06T03:26:52Z",
+  "generated_at": "2026-08-08T03:23:49Z",
   "projects": [
+    {
+      "name": "staff",
+      "category": "skill",
+      "language": "markdown",
+      "description": "Claude Code skill for managing the staff monorepo — scaffolding, registry, install, conventions",
+      "status": "alpha",
+      "path": "skills/staff",
+      "tags": [
+        "cli",
+        "monorepo",
+        "claude-code"
+      ],
+      "version": "0.1.0"
+    },
     {
       "name": "sdlc",
       "category": "harness",

@@ -74,10 +74,3 @@ find_project() {
   fi
   echo "$result"
 }
-
-# Get a field from a project's staff.json
-project_field() {
-  local project_path="$1"
-  local field="$2"
-  jq -r "$field" "$STAFF_ROOT/$project_path/staff.json"
-}
