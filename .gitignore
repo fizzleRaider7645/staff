@@ -9,6 +9,11 @@ target/
 # Environment
 .env
 .env.local
+.venv/
+venv/
+
+# SDLC state
+.sdlc/
 
 # IDE
 .vscode/

@@ -52,6 +52,10 @@ EOF
     return 1
   fi
 
+  if ! echo "$name" | grep -qE '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'; then
+    die "Invalid project name: '$name'. Use kebab-case (e.g., my-project)"
+  fi
+
   # Validate category
   local category_dir
   case "$category" in

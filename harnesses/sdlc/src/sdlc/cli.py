@@ -24,7 +24,7 @@ def require_sdlc_dir() -> Path:
 
 
 @click.group()
-@click.version_option(version="0.1.0")
+@click.version_option(package_name="sdlc")
 def main():
     """SDLC — AI-powered development lifecycle orchestration."""
 
@@ -204,7 +204,8 @@ def verify(model):
 
 
 @main.command(name="run")
-def run_all():
+@click.option("--model", type=str, default=None, help="Override the model for all phases")
+def run_all(model):
     """Run full SDLC sequence with approval gates between phases."""
     sdlc_dir = require_sdlc_dir()
     config = SDLCConfig.load(sdlc_dir)
@@ -220,6 +221,6 @@ def run_all():
             console.print("[yellow]Stopped.[/] Resume later with [bold]sdlc run[/].")
             return
 
-        _run_phase_safe(phase, sdlc_dir, config, state)
+        _run_phase_safe(phase, sdlc_dir, config, state, model)
 
     console.print("\n[bold green]All phases complete![/]")
