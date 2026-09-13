@@ -34,9 +34,9 @@ staff add_source <repo-name> <path> [--scope user|project] [--no-install]
 staff update_source <repo-name> [--no-install]
 staff remove_source <repo-name> [--keep-installed]
 staff init <category> <name> [--lang ts|python|go|shell|markdown]
-staff install <project> [--scope user|project]
+staff install <project> [--scope user|project] [--allow-build]
 staff uninstall <project> [--scope user|project]
-staff build <project>
+staff build <project> [--allow-build]
 staff doctor
 staff registry rebuild
 ```

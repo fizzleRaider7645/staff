@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 
 cmd_install() {
-  local project_name="" scope="user"
+  local project_name="" scope="user" allow_build="false"
 
   while [ $# -gt 0 ]; do
     case "$1" in
-      --scope)   scope="$2";  shift 2 ;;
+      --scope)       scope="$2";  shift 2 ;;
+      --allow-build) allow_build="true"; shift ;;
       -h|--help)
         cat <<EOF
 ${BOLD}staff install${RESET} — install/wire up a project
@@ -17,6 +18,8 @@ ${BOLD}Options:${RESET}
   --scope user|project   Where to install (default: user)
                          user: ~/.claude/ (global)
                          project: ./.claude/ (current directory)
+  --allow-build          Permit running a build command declared by a sourced
+                         (external) project. Refused by default.
   -h, --help             Show this help
 
 ${BOLD}What happens by category:${RESET}
@@ -54,6 +57,11 @@ EOF
   local project_path category
   project_path=$(echo "$project_info" | jq -r '.path')
   category=$(echo "$project_info" | jq -r '.category')
+
+  # Consulted by install_mcp / install_tool before running build.command,
+  # which for a sourced project was authored by a third party.
+  STAFF_PROJECT_SOURCED=$(echo "$project_info" | jq -r '.sourced // false')
+  STAFF_ALLOW_BUILD="$allow_build"
 
   local abs_project_path="$STAFF_ROOT/$project_path"
   local manifest="$abs_project_path/staff.json"
@@ -114,7 +122,9 @@ install_mcp() {
     local build_cmd
     build_cmd=$(jq -r '.build.command // ""' "$manifest")
     if [ -n "$build_cmd" ]; then
-      (cd "$project_path" && eval "$build_cmd") || die "Build failed"
+      run_build_command "$build_cmd" "$project_path" \
+        "${STAFF_PROJECT_SOURCED:-false}" "${STAFF_ALLOW_BUILD:-false}" "$name" \
+        || die "Build failed"
     fi
   fi
 
@@ -204,7 +214,9 @@ install_tool() {
     local build_cmd
     build_cmd=$(jq -r '.build.command // ""' "$manifest")
     if [ -n "$build_cmd" ]; then
-      (cd "$project_path" && eval "$build_cmd") || die "Build failed"
+      run_build_command "$build_cmd" "$project_path" \
+        "${STAFF_PROJECT_SOURCED:-false}" "${STAFF_ALLOW_BUILD:-false}" "$name" \
+        || die "Build failed"
     fi
   fi
 

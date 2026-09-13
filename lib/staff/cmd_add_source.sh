@@ -203,15 +203,33 @@ EOF
   registry_rebuild || return 1
 
   local install_status="registered"
+  local install_failures=()
   if [ "$auto_install" = "true" ]; then
     for project_name in "${project_names[@]}"; do
-      "$STAFF_ROOT/bin/staff" install "$project_name" --scope "$install_scope" || return 1
+      # One project failing to install must not discard the whole bundle —
+      # a sourced project that declares a build command is refused by
+      # default, and that is an expected outcome, not a broken ingest.
+      if ! "$STAFF_ROOT/bin/staff" install "$project_name" --scope "$install_scope"; then
+        warn "Could not install '$project_name' — the bundle is still registered"
+        install_failures+=("$project_name")
+      fi
     done
-    install_status="installed"
+    if [ ${#install_failures[@]} -eq 0 ]; then
+      install_status="installed"
+    else
+      install_status="partial"
+    fi
   fi
 
   add_source_update_metadata_status "$metadata_path" "$install_status"
   add_source_print_ready "$source_name" "$install_status" "$install_scope" "$auto_install" "${project_names[@]}"
+
+  if [ ${#install_failures[@]} -gt 0 ]; then
+    warn "Not installed: ${install_failures[*]}"
+    info "Retry individually, e.g. staff install ${install_failures[0]} --scope $install_scope"
+    return 1
+  fi
+  return 0
 }
 
 discover_source_manifests() {
@@ -280,7 +298,9 @@ add_source_print_ready() {
   local project_names=("$@")
 
   ok "Registered source bundle '$source_name' in sources/"
-  if [ "$install_status" = "installed" ]; then
+  if [ "$install_status" = "partial" ]; then
+    warn "Discovered ${#project_names[@]} project(s); some could not be installed"
+  elif [ "$install_status" = "installed" ]; then
     ok "Discovered and installed ${#project_names[@]} project(s)"
   else
     info "Discovered ${#project_names[@]} project(s); install was skipped"

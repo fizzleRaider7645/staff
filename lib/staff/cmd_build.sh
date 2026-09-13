@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
 
 cmd_build() {
-  local project_name=""
+  local project_name="" allow_build="false"
 
   while [ $# -gt 0 ]; do
     case "$1" in
+      --allow-build) allow_build="true"; shift ;;
       -h|--help)
         cat <<EOF
 ${BOLD}staff build${RESET} — build a project
 
 ${BOLD}Usage:${RESET}
-  staff build <project>
+  staff build <project> [--allow-build]
 
 Runs the build command from the project's staff.json, or auto-detects from build files.
+
+${BOLD}Options:${RESET}
+  --allow-build   Permit running a build command declared by a sourced
+                  (external) project. Refused by default.
 
 EOF
         return 0
@@ -64,8 +69,11 @@ EOF
     info "Auto-detected build command: $build_cmd"
   fi
 
+  local sourced
+  sourced=$(echo "$project_info" | jq -r '.sourced // false')
+
   info "Building $project_name..."
-  if (cd "$abs_path" && eval "$build_cmd"); then
+  if run_build_command "$build_cmd" "$abs_path" "$sourced" "$allow_build" "$project_name"; then
     ok "Build succeeded: $project_name"
   else
     die "Build failed: $project_name"

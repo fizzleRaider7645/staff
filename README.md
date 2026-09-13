@@ -117,6 +117,8 @@ staff update_source anthropic_skills   # install additions, uninstall removals, 
 staff remove_source anthropic_skills   # uninstall everything it provided, then drop the bundle
 ```
 
+Build commands declared by a sourced project are refused by default: `build.command` in a `staff.json` from an external repo was written by someone else, and `staff install` would otherwise run it. Pass `--allow-build` to opt in once you trust the source.
+
 `update_source` re-synthesizes manifests from scratch, so upstream edits to a `SKILL.md` description show up in the registry. `remove_source` only ever deletes `sources/<name>/` — the external repo behind the symlink is never touched.
 
 ## Project structure
