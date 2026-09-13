@@ -20,6 +20,14 @@ warn()  { printf "${YELLOW}warn${RESET}  %s\n" "$*" >&2; }
 error() { printf "${RED}error${RESET} %s\n" "$*" >&2; }
 die()   { error "$@"; exit 1; }
 
+# Timestamped backup of a config file about to be rewritten. Prior backups
+# are kept — a single .bak was previously overwritten on every run.
+backup_config() {
+  local file="$1"
+  [ -f "$file" ] || return 0
+  cp "$file" "${file}.bak.$(date -u +%Y%m%dT%H%M%SZ)"
+}
+
 require_jq() {
   command -v jq >/dev/null 2>&1 || die "jq is required but not installed. Install it: brew install jq"
 }

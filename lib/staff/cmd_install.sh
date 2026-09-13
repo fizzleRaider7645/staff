@@ -21,7 +21,8 @@ ${BOLD}Options:${RESET}
 
 ${BOLD}What happens by category:${RESET}
   skill    Symlinks into ~/.claude/skills/ (or .claude/skills/)
-  mcp      Merges config into Claude Code settings.json mcpServers
+  mcp      Adds an mcpServers entry to ~/.claude.json (user)
+           or .mcp.json in the current directory (project)
   agent    Symlinks into ~/.claude/agents/ (or .claude/agents/)
   tool     Creates a wrapper script in ~/.local/bin/
 
@@ -117,21 +118,27 @@ install_mcp() {
     fi
   fi
 
-  local settings_file
+  # Claude Code resolves MCP servers from ~/.claude.json (user scope) and
+  # .mcp.json at the project root (project scope). settings.json only carries
+  # enable/disable toggles, so definitions written there are ignored.
+  local config_file
   if [ "$scope" = "user" ]; then
-    settings_file="$HOME/.claude/settings.json"
+    config_file="$HOME/.claude.json"
   else
-    settings_file="$(pwd)/.claude/settings.json"
+    config_file="$(pwd)/.mcp.json"
   fi
 
-  mkdir -p "$(dirname "$settings_file")"
+  mkdir -p "$(dirname "$config_file")"
 
-  if [ ! -f "$settings_file" ]; then
-    echo '{}' > "$settings_file"
+  if [ ! -f "$config_file" ]; then
+    echo '{}' > "$config_file"
   fi
 
-  # Back up settings
-  cp "$settings_file" "${settings_file}.bak"
+  if ! jq -e . "$config_file" >/dev/null 2>&1; then
+    die "Not valid JSON, refusing to modify: $config_file"
+  fi
+
+  backup_config "$config_file"
 
   # Build MCP config with resolved paths
   local mcp_config
@@ -140,13 +147,12 @@ install_mcp() {
     .args = (.args // [] | map(gsub("\\$\\{PROJECT_ROOT\\}"; $root)))
   ' "$manifest")
 
-  # Merge into settings
   jq --arg name "$name" --argjson config "$mcp_config" '
     .mcpServers[$name] = $config
-  ' "$settings_file" > "${settings_file}.tmp" && mv "${settings_file}.tmp" "$settings_file"
+  ' "$config_file" > "${config_file}.tmp" && mv "${config_file}.tmp" "$config_file"
 
-  record_installation "$name" "mcp" "$scope" "$settings_file" "" "mcpServers.$name"
-  ok "Installed MCP '$name' into $settings_file"
+  record_installation "$name" "mcp" "$scope" "$config_file" "" "mcpServers.$name"
+  ok "Installed MCP '$name' into $config_file"
 }
 
 install_agent() {
@@ -173,9 +179,14 @@ install_agent() {
     die "Agent file not found: $source_file"
   fi
 
-  ln -sf "$source_file" "$target_dir/$agent_file"
-  record_installation "$name" "agent" "$scope" "$target_dir" "$target_dir/$agent_file"
-  ok "Installed agent '$name' -> $target_dir/$agent_file"
+  # The link is named after the project, not after agent_file. Every staff
+  # agent template ships an "agent.md", so linking by source filename made
+  # each install clobber the previous one.
+  local link_path="$target_dir/$name.md"
+
+  ln -sf "$source_file" "$link_path"
+  record_installation "$name" "agent" "$scope" "$target_dir" "$link_path"
+  ok "Installed agent '$name' -> $link_path"
 }
 
 install_tool() {

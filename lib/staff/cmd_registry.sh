@@ -27,6 +27,7 @@ registry_rebuild() {
 
   local projects="[]"
   local count=0
+  local rebuild_errors=0
 
   add_registry_entry() {
     local manifest="$1"
@@ -90,8 +91,19 @@ registry_rebuild() {
       local source_name
       source_name="$(basename "$source_dir")"
 
+      # A registered bundle whose repo link no longer resolves must not be
+      # silently skipped: that drops every project it contributed and still
+      # reports success.
       local repo_dir="$source_dir/repo"
-      [ -d "$repo_dir" ] || continue
+      if [ ! -d "$repo_dir" ]; then
+        if [ -L "$repo_dir" ] || [ -f "$source_dir/source.toml" ]; then
+          local link_target
+          link_target="$(readlink "$repo_dir" 2>/dev/null || echo "<missing>")"
+          error "Source '$source_name': repo link does not resolve -> $link_target"
+          rebuild_errors=$((rebuild_errors + 1))
+        fi
+        continue
+      fi
 
       local root_manifest="$repo_dir/staff.json"
       if [ -f "$root_manifest" ]; then
@@ -135,6 +147,12 @@ registry_rebuild() {
 
   scan_local_projects
   scan_sourced_projects
+
+  if [ "$rebuild_errors" -gt 0 ]; then
+    error "Registry NOT rebuilt — $rebuild_errors unresolvable source(s); existing registry.json left untouched"
+    error "Restore the missing path, or drop the bundle: rm -rf sources/<name>"
+    return 1
+  fi
 
   local timestamp
   timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

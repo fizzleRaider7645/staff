@@ -71,7 +71,7 @@ EOF
     local settings_target
     settings_target=$(echo "$entry" | jq -r '.target')
     if [ -f "$settings_target" ]; then
-      cp "$settings_target" "${settings_target}.bak"
+      backup_config "$settings_target"
       local key_name="${config_key#mcpServers.}"
       jq --arg key "$key_name" 'del(.mcpServers[$key])' "$settings_target" > "${settings_target}.tmp" \
         && mv "${settings_target}.tmp" "$settings_target"
