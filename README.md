@@ -38,6 +38,16 @@ staff registry rebuild              # Regenerate registry.json
 
 Categories: `skill`, `mcp`, `agent`, `tool`, `harness`, `lib`
 
+## Testing
+
+```bash
+./tests/run.sh                      # CLI suite (98 tests, bash + jq only)
+cd harnesses/sdlc && pytest         # SDLC harness suite (154 tests)
+```
+
+Each CLI test runs against a throwaway copy of the repo with its own `$HOME`, so
+running the suite never touches your real registry, `~/.claude`, or `~/.staff`.
+
 ## Layout
 
 | Directory    | What goes here                                                                  |

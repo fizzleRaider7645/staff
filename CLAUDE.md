@@ -59,6 +59,25 @@ sdlc status                               # Show progress
 
 Architecture: hybrid engine (direct API for thinking phases, `claude` CLI for doing phases), 3 providers (Anthropic/OpenAI/Google), composable phases, file-based state in `.sdlc/`.
 
+## Testing
+
+```
+./tests/run.sh              Run the CLI test suite
+./tests/run.sh install      Run one suite (install, sources, registry, frontmatter)
+./tests/run.sh -v           Show output from failing commands
+```
+
+Zero dependencies beyond `bash` and `jq`. Every test runs against a throwaway copy
+of the repo with its own `$HOME`, so nothing touches the real registry, `~/.claude`,
+or `~/.staff`. Add cases to `tests/test_<area>.sh`; the runner picks up any
+`tests/test_*.sh` automatically.
+
+The SDLC harness has its own suite: `cd harnesses/sdlc && python -m pytest`.
+
+CI runs both on every push and PR, and the CLI suite on macOS as well as Linux —
+macOS still ships bash 3.2, where array and parameter-expansion behaviour differs
+from bash 5.
+
 ## Adding a new project
 
 Use the CLI: `staff init <category> <name> [--lang ts|python|go]`

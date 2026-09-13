@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  cli:
+    # The CLI ships to macOS, where /bin/bash is still 3.2 — array and
+    # parameter-expansion behaviour differs enough from bash 5 that testing
+    # only on Linux would miss real breakage.
+    name: CLI tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Report bash version
+        run: bash --version | head -1
+
+      - name: Run test suite
+        run: ./tests/run.sh
+
+  sdlc:
+    name: SDLC harness tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        working-directory: harnesses/sdlc
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest
+
+      - name: Run pytest
+        working-directory: harnesses/sdlc
+        run: python -m pytest -q
+
+  shellcheck:
+    # Advisory for now: the shell has never been linted, so this reports
+    # findings without gating. Make it blocking once the backlog is clear.
+    name: shellcheck (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Lint
+        run: shellcheck --shell=bash --severity=warning bin/staff lib/staff/*.sh setup.sh tests/*.sh
