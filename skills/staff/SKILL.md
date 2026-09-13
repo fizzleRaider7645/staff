@@ -31,9 +31,11 @@ Run these from anywhere — the CLI resolves the repo root from its own location
 ```
 staff list [--category X] [--language X] [--tag X] [--status X] [--sourced true|false]
 staff add_source <repo-name> <path> [--scope user|project] [--no-install]
+staff update_source <repo-name> [--no-install]
+staff remove_source <repo-name> [--keep-installed]
 staff init <category> <name> [--lang ts|python|go|shell|markdown]
 staff install <project> [--scope user|project]
-staff uninstall <project>
+staff uninstall <project> [--scope user|project]
 staff build <project>
 staff doctor
 staff registry rebuild
@@ -46,7 +48,9 @@ Categories for `init`: skill, mcp, agent, tool, harness, lib.
 - **Starting a new project**: `staff init <category> <name>` — creates the directory, `staff.json`, and starter files. Rebuilds the registry automatically.
 - **Listing what exists**: `staff list` — reads from `registry.json`. Filter with `--category`, `--language`, `--tag`, `--status`, `--sourced`.
 - **Adding external projects**: `staff add_source <repo-name> <path>` — creates `sources/<repo-name>/` (read-only symlink + source metadata), discovers projects via native `staff.json` or per-category format recognition (SKILL.md, agent frontmatter), rebuilds the registry, and auto-installs by default.
-- **Wiring a project into Claude Code**: `staff install <project>` — symlinks skills, merges MCP configs, links agents, or creates tool wrappers depending on category.
+- **Syncing an external source**: `staff update_source <repo-name>` — re-runs discovery against the existing symlink, installs what upstream added, uninstalls what it dropped, and re-derives synthesized manifests. Discovery only runs at `add_source`/`update_source` time, never on `registry rebuild`, so this is the only way to pick up upstream changes. `staff doctor` flags sources whose git SHA has moved.
+- **Dropping an external source**: `staff remove_source <repo-name>` — uninstalls every project it contributed, then removes `sources/<repo-name>/`. The external repo is never modified.
+- **Wiring a project into Claude Code**: `staff install <project>` — symlinks skills, adds MCP servers to `~/.claude.json` (user) or `.mcp.json` (project), links agents as `<project>.md`, or creates tool wrappers depending on category.
 - **After changing any `staff.json`**: `staff registry rebuild` — regenerates `registry.json` from all manifests.
 - **Checking health**: `staff doctor` — verifies jq, registry, and all installed projects.
 

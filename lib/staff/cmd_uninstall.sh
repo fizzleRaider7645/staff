@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 
 cmd_uninstall() {
-  local project_name=""
+  local project_name="" scope=""
 
   while [ $# -gt 0 ]; do
     case "$1" in
+      --scope) scope="$2"; shift 2 ;;
       -h|--help)
         cat <<EOF
 ${BOLD}staff uninstall${RESET} — remove an installed project
 
 ${BOLD}Usage:${RESET}
-  staff uninstall <project>
+  staff uninstall <project> [--scope user|project]
 
-Reverses the installation by removing symlinks, config entries, or wrapper scripts.
+Reverses the installation by removing symlinks, config entries, or wrapper
+scripts. Without --scope, every scope the project is installed at is removed.
 
 EOF
         return 0
@@ -29,60 +31,88 @@ EOF
   done
 
   if [ -z "$project_name" ]; then
-    error "Usage: staff uninstall <project>"
+    error "Usage: staff uninstall <project> [--scope user|project]"
     return 1
+  fi
+
+  if [ -n "$scope" ]; then
+    case "$scope" in
+      user|project) ;;
+      *) error "Invalid scope: $scope (must be user or project)"; return 1 ;;
+    esac
   fi
 
   require_jq
   ensure_state_dir
 
-  local entry
-  entry=$(jq -r --arg name "$project_name" '
-    .installations[] | select(.project == $name)
+  # A project may be installed at more than one scope; each is its own record.
+  local entries
+  entries=$(jq -c --arg name "$project_name" --arg scope "$scope" '
+    .installations[]
+    | select(.project == $name)
+    | select($scope == "" or .scope == $scope)
   ' "$STAFF_INSTALLED")
 
-  if [ -z "$entry" ]; then
+  if [ -z "$entries" ]; then
+    if [ -n "$scope" ]; then
+      die "Project '$project_name' is not installed at $scope scope"
+    fi
     die "Project '$project_name' is not installed"
   fi
 
-  local category
+  local entry
+  while IFS= read -r entry; do
+    [ -n "$entry" ] || continue
+    uninstall_entry "$entry"
+  done <<< "$entries"
+
+  # Drop the records we just acted on
+  jq --arg name "$project_name" --arg scope "$scope" '
+    .installations = [
+      .installations[]
+      | select((.project != $name) or ($scope != "" and .scope != $scope))
+    ]
+  ' "$STAFF_INSTALLED" > "${STAFF_INSTALLED}.tmp" && mv "${STAFF_INSTALLED}.tmp" "$STAFF_INSTALLED"
+
+  ok "Uninstalled '$project_name'"
+}
+
+# Reverse a single installation record.
+uninstall_entry() {
+  local entry="$1"
+
+  local category target
   category=$(echo "$entry" | jq -r '.category')
+  target=$(echo "$entry" | jq -r '.target')
 
   # Remove symlinks
-  echo "$entry" | jq -r '.symlinks[]? // empty' | while read -r symlink; do
+  local symlink
+  while IFS= read -r symlink; do
+    [ -n "$symlink" ] || continue
     if [ -L "$symlink" ] || [ -f "$symlink" ]; then
       rm -f "$symlink"
       info "Removed: $symlink"
     fi
-  done
+  done < <(echo "$entry" | jq -r '.symlinks[]? // empty')
 
-  # Remove parent directory if empty (for skills/agents)
+  # Remove the containing directory only if nothing else lives there
   if [ "$category" = "skill" ] || [ "$category" = "agent" ]; then
-    local target
-    target=$(echo "$entry" | jq -r '.target')
     if [ -d "$target" ] && [ -z "$(ls -A "$target" 2>/dev/null)" ]; then
       rmdir "$target"
       info "Removed empty directory: $target"
     fi
   fi
 
-  # Remove config keys (for MCPs)
-  echo "$entry" | jq -r '.config_keys[]? // empty' | while read -r config_key; do
-    local settings_target
-    settings_target=$(echo "$entry" | jq -r '.target')
-    if [ -f "$settings_target" ]; then
-      backup_config "$settings_target"
+  # Remove config keys (MCP servers)
+  local config_key
+  while IFS= read -r config_key; do
+    [ -n "$config_key" ] || continue
+    if [ -f "$target" ]; then
+      backup_config "$target"
       local key_name="${config_key#mcpServers.}"
-      jq --arg key "$key_name" 'del(.mcpServers[$key])' "$settings_target" > "${settings_target}.tmp" \
-        && mv "${settings_target}.tmp" "$settings_target"
-      info "Removed config key: $config_key from $settings_target"
+      jq --arg key "$key_name" 'del(.mcpServers[$key])' "$target" > "${target}.tmp" \
+        && mv "${target}.tmp" "$target"
+      info "Removed config key: $config_key from $target"
     fi
-  done
-
-  # Remove from tracking
-  jq --arg name "$project_name" '
-    .installations = [.installations[] | select(.project != $name)]
-  ' "$STAFF_INSTALLED" > "${STAFF_INSTALLED}.tmp" && mv "${STAFF_INSTALLED}.tmp" "$STAFF_INSTALLED"
-
-  ok "Uninstalled '$project_name'"
+  done < <(echo "$entry" | jq -r '.config_keys[]? // empty')
 }

@@ -25,6 +25,8 @@ ${BOLD}Usage:${RESET}
 ${BOLD}Commands:${RESET}
   list              List projects in the registry
   add_source        Register an external project in sources/
+  update_source     Re-scan a registered source and sync it
+  remove_source     Unregister a source bundle
   install           Install/wire up a project
   uninstall         Remove an installed project
   build             Build a project
@@ -63,6 +65,16 @@ case "$1" in
     shift
     source "$STAFF_ROOT/lib/staff/cmd_add_source.sh"
     cmd_add_source "$@"
+    ;;
+  update_source|update-source)
+    shift
+    source "$STAFF_ROOT/lib/staff/cmd_add_source.sh"
+    cmd_update_source "$@"
+    ;;
+  remove_source|remove-source)
+    shift
+    source "$STAFF_ROOT/lib/staff/cmd_add_source.sh"
+    cmd_remove_source "$@"
     ;;
   install)
     shift

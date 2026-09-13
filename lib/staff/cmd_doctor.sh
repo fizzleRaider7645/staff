@@ -84,6 +84,36 @@ EOF
     issues=$((issues + 1))
   fi
 
+  # Sources
+  if [ -d "$STAFF_ROOT/sources" ] && [ -n "$(ls -A "$STAFF_ROOT/sources" 2>/dev/null)" ]; then
+    printf "\n${BOLD}Sources${RESET}\n"
+    source "$STAFF_ROOT/lib/staff/cmd_add_source.sh"
+    local source_dir source_name link_path recorded_ref current_ref
+    for source_dir in "$STAFF_ROOT/sources"/*/; do
+      [ -d "$source_dir" ] || continue
+      source_dir="${source_dir%/}"
+      source_name="$(basename "$source_dir")"
+      link_path="$source_dir/repo"
+
+      if [ ! -d "$link_path" ]; then
+        error "$source_name: repo link does not resolve -> $(readlink "$link_path" 2>/dev/null || echo '<missing>')"
+        issues=$((issues + 1))
+        continue
+      fi
+
+      recorded_ref=$(source_meta_value "$source_dir/source.toml" "git_ref")
+      if [ -n "$recorded_ref" ] && git -C "$link_path" rev-parse --git-dir >/dev/null 2>&1; then
+        current_ref=$(git -C "$link_path" rev-parse HEAD 2>/dev/null || true)
+        if [ -n "$current_ref" ] && [ "$current_ref" != "$recorded_ref" ]; then
+          warn "$source_name: upstream moved since it was added — run: staff update_source $source_name"
+          issues=$((issues + 1))
+          continue
+        fi
+      fi
+      ok "$source_name: up to date"
+    done
+  fi
+
   # Installation audit
   printf "\n${BOLD}Installations${RESET}\n"
   ensure_state_dir

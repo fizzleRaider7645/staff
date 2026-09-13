@@ -253,8 +253,10 @@ record_installation() {
       config_keys: (if $config_key != "" then [$config_key] else [] end)
     }')
 
-  # Remove any existing entry for this project, then add new one
-  jq --arg name "$name" --argjson entry "$entry" '
-    .installations = ([.installations[] | select(.project != $name)] + [$entry])
+  # Replace any existing entry for this project *at this scope*. Keying on
+  # the project alone meant a user-scope install followed by a project-scope
+  # one lost the first record, orphaning whatever it had written.
+  jq --arg name "$name" --arg scope "$scope" --argjson entry "$entry" '
+    .installations = ([.installations[] | select(.project != $name or .scope != $scope)] + [$entry])
   ' "$STAFF_INSTALLED" > "${STAFF_INSTALLED}.tmp" && mv "${STAFF_INSTALLED}.tmp" "$STAFF_INSTALLED"
 }

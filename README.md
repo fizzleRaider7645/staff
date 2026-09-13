@@ -26,6 +26,8 @@ cd staff
 ```bash
 staff list                          # List all projects
 staff add_source <name> <path>      # Register and auto-install an external project
+staff update_source <name>          # Re-scan a registered source for upstream changes
+staff remove_source <name>          # Unregister a source and uninstall what it provided
 staff init <category> <name>        # Scaffold a new project
 staff install <project>             # Wire it into Claude Code
 staff uninstall <project>           # Remove an installed project
@@ -97,6 +99,15 @@ ls -l sources/anthropic_skills/repo
 `add_source` first tries the repo's own `staff.json` manifests, if any. For anything else, it recognizes native formats per category — currently **skill** (`SKILL.md`) and **agent** (flat `<name>.md` with `name:`/`description:` frontmatter under `agents/`). For each match it synthesizes a `staff.json` under `sources/<name>/generated/`, pointing back at the real file inside the read-only `sources/<name>/repo/` symlink — the source repo itself is never modified. MCP and tool auto-discovery isn't supported yet (no single unambiguous native-format signal); a source repo that already ships real `staff.json` files for those still works via the manifest path.
 
 Either way, `add_source` records source metadata (including git SHA when available), rebuilds the registry, and auto-installs by default so every discovered project is ready immediately.
+
+Discovery runs at `add_source` time, so a source goes stale when the upstream repo changes. `staff doctor` compares the recorded git SHA against the repo's current HEAD and tells you when that has happened:
+
+```bash
+staff update_source anthropic_skills   # install additions, uninstall removals, re-derive manifests
+staff remove_source anthropic_skills   # uninstall everything it provided, then drop the bundle
+```
+
+`update_source` re-synthesizes manifests from scratch, so upstream edits to a `SKILL.md` description show up in the registry. `remove_source` only ever deletes `sources/<name>/` — the external repo behind the symlink is never touched.
 
 ## Project structure
 
