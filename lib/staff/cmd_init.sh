@@ -69,9 +69,12 @@ EOF
   esac
 
   # Default language by category
+  # Default to a language that actually has a template for the category,
+  # otherwise init silently produces a project that cannot be installed.
   if [ -z "$lang" ]; then
     case "$category" in
       skill|agent) lang="markdown" ;;
+      tool)        lang="python" ;;
       *)           lang="ts" ;;
     esac
   fi
@@ -152,6 +155,9 @@ scaffold_from_template() {
         -e "s|{{DATE}}|$date_str|g" \
         -e "s|{{AUTHOR}}|$author|g" \
         "$tmpl" > "$dest"
+    # Carry the executable bit across; a template's bin/ wrapper is useless
+    # without it, and install_tool exec's it directly.
+    if [ -x "$tmpl" ]; then chmod +x "$dest"; fi
   done
 
   # Copy non-template files as-is
@@ -159,7 +165,7 @@ scaffold_from_template() {
     local rel="${file#$template_dir/}"
     local dest="$project_dir/${rel//__name__/$name_under}"
     mkdir -p "$(dirname "$dest")"
-    cp "$file" "$dest"
+    cp -p "$file" "$dest"
   done
 }
 
