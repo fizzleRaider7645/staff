@@ -25,17 +25,18 @@ staff install <project> Wire up a project (symlink skill, register MCP, etc.)
 staff uninstall <name>  Remove an installed project
 staff build <project>   Build a project
 staff doctor            Check installation health
-staff registry rebuild  Regenerate registry.json from staff.json files
 ```
 
 ## Registry
 
-Every project has a `staff.json` manifest. Projects that live in this repo are indexed in
-`registry.json` at the repo root, which is committed. Projects ingested from external repos
-are indexed separately in `sources/registry.json`, which is gitignored — their paths are
-absolute and machine-local, so the index cannot be shared.
+Every project has a `staff.json` manifest. There is no index file: `staff list`,
+`staff install` and `staff doctor` walk the tree on every invocation, which takes
+about a tenth of a second. Nothing to rebuild, and nothing that can disagree with
+what is actually on disk.
 
-`staff list` queries both. Run `staff registry rebuild` to regenerate them.
+Foreign-format discovery is the exception — recognizing a `SKILL.md` that has no
+manifest of its own happens at `add_source` / `update_source` time and caches a
+synthesized manifest under `sources/<name>/generated/`.
 
 ## Conventions
 
@@ -85,4 +86,4 @@ Use the CLI: `staff init <category> <name> [--lang ts|python|go]`
 Or manually:
 1. `mkdir <category>/<project-name>`
 2. Add `staff.json`, build file, and `README.md`
-3. Run `staff registry rebuild`
+3. That's it — the project is discovered on the next command

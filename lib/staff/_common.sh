@@ -69,11 +69,6 @@ resolve_staff_root() {
 STAFF_ROOT="${STAFF_ROOT:-$(resolve_staff_root)}"
 STAFF_STATE_DIR="${HOME}/.staff"
 STAFF_INSTALLED="${STAFF_STATE_DIR}/installed.json"
-# registry.json indexes projects that live in this repo and is committed.
-# Sourced projects are machine-local (absolute symlink targets), so they are
-# indexed separately under sources/, which is gitignored.
-STAFF_REGISTRY="${STAFF_ROOT}/registry.json"
-STAFF_SOURCE_REGISTRY="${STAFF_ROOT}/sources/registry.json"
 
 CATEGORIES="skills mcps agents tools harnesses lib"
 
@@ -86,33 +81,146 @@ ensure_state_dir() {
   fi
 }
 
-ensure_registry() {
-  if [ ! -f "$STAFF_REGISTRY" ]; then
-    warn "Registry not found. Run: staff registry rebuild"
-    return 1
-  fi
+# Locate every staff.json, emitting one metadata line per manifest:
+#   <manifest path>\t<repo-relative project path>\t<sourced>\t<source name>
+#
+# There is no index file. A full walk of this repo takes single-digit
+# milliseconds, and a cache would only reintroduce the question of whether it
+# still agrees with the disk.
+scan_manifests() {
+  local cat_dir full_dir project_dir manifest rel
+
+  for cat_dir in $CATEGORIES; do
+    full_dir="$STAFF_ROOT/$cat_dir"
+    [ -d "$full_dir" ] || continue
+    for project_dir in "$full_dir"/*/; do
+      [ -d "$project_dir" ] || continue
+      project_dir="${project_dir%/}"
+      manifest="$project_dir/staff.json"
+      [ -f "$manifest" ] || continue
+      rel="${project_dir#$STAFF_ROOT/}"
+      printf '%s\t%s\t%s\t%s\n' "$manifest" "$rel" "false" ""
+    done
+  done
+
+  local sources_root="$STAFF_ROOT/sources"
+  [ -d "$sources_root" ] || return 0
+
+  local source_dir source_name repo_dir generated_dir
+  for source_dir in "$sources_root"/*/; do
+    [ -d "$source_dir" ] || continue
+    source_dir="${source_dir%/}"
+    source_name="$(basename "$source_dir")"
+    repo_dir="$source_dir/repo"
+
+    if [ ! -d "$repo_dir" ]; then
+      # Only a bundle that was actually registered is worth complaining about.
+      # Nothing is lost by skipping it — there is no index to corrupt.
+      if [ -L "$repo_dir" ] || [ -f "$source_dir/source.toml" ]; then
+        warn "Source '$source_name': repo link does not resolve -> $(readlink "$repo_dir" 2>/dev/null || echo '<missing>')"
+      fi
+      continue
+    fi
+
+    if [ -f "$repo_dir/staff.json" ]; then
+      rel="${repo_dir#$STAFF_ROOT/}"
+      printf '%s\t%s\t%s\t%s\n' "$repo_dir/staff.json" "$rel" "true" "$source_name"
+    fi
+
+    for cat_dir in $CATEGORIES; do
+      full_dir="$repo_dir/$cat_dir"
+      [ -d "$full_dir" ] || continue
+      for project_dir in "$full_dir"/*/; do
+        [ -d "$project_dir" ] || continue
+        project_dir="${project_dir%/}"
+        manifest="$project_dir/staff.json"
+        [ -f "$manifest" ] || continue
+        rel="${project_dir#$STAFF_ROOT/}"
+        printf '%s\t%s\t%s\t%s\n' "$manifest" "$rel" "true" "$source_name"
+      done
+    done
+
+    # Manifests staff synthesized for foreign-format projects
+    generated_dir="$source_dir/generated"
+    [ -d "$generated_dir" ] || continue
+    while IFS= read -r manifest; do
+      [ -n "$manifest" ] || continue
+      project_dir="${manifest%/staff.json}"
+      rel="${project_dir#$STAFF_ROOT/}"
+      printf '%s\t%s\t%s\t%s\n' "$manifest" "$rel" "true" "$source_name"
+    done < <(find "$generated_dir" -name staff.json)
+  done
 }
 
-# Every indexed project, local and sourced, as a single JSON array.
+# Every project staff knows about, as a single JSON array. Reads the disk
+# every time; three jq invocations total, regardless of project count.
 registry_projects() {
   require_jq
-  local local_json='{"projects":[]}' source_json='{"projects":[]}'
-  [ -f "$STAFF_REGISTRY" ] && local_json=$(cat "$STAFF_REGISTRY")
-  [ -f "$STAFF_SOURCE_REGISTRY" ] && source_json=$(cat "$STAFF_SOURCE_REGISTRY")
-  jq -n --argjson a "$local_json" --argjson b "$source_json" \
-    '($a.projects // []) + ($b.projects // [])'
+
+  local manifests=() metas=()
+  local manifest rel sourced source_name
+  while IFS=$'\t' read -r manifest rel sourced source_name; do
+    [ -n "$manifest" ] || continue
+    manifests+=("$manifest")
+    metas+=("$(jq -n --arg p "$rel" --argjson s "$sourced" --arg sn "$source_name" \
+      '{path:$p, sourced:$s, source_name:$sn}')")
+  done < <(scan_manifests)
+
+  if [ ${#manifests[@]} -eq 0 ]; then
+    echo '[]'
+    return 0
+  fi
+
+  local contents meta
+  contents=$(jq -s '.' "${manifests[@]}") || return 1
+  meta=$(printf '%s\n' "${metas[@]}" | jq -s '.')
+
+  jq -n --argjson c "$contents" --argjson m "$meta" '
+    [ range(0; $c | length) as $i
+      | $c[$i] as $p
+      | $m[$i] as $meta
+      | {
+          name: $p.name,
+          category: $p.category,
+          language: $p.language,
+          description: $p.description,
+          status: $p.status,
+          path: $meta.path,
+          tags: ($p.tags // []),
+          version: ($p.version // "0.0.0"),
+          sourced: $meta.sourced,
+          synthesized: ($p.synthesized // false),
+          native_format: ($p.native_format // "staff")
+        }
+        + (if $meta.source_name != "" then {source_name: $meta.source_name} else {} end)
+    ]'
 }
 
-# Find a project by name in the registry
+# Kept as a no-op guard so callers read naturally; there is no index to check.
+ensure_registry() { return 0; }
+
+# Resolve a project name to its manifest entry.
 find_project() {
   local name="$1"
   require_jq
-  ensure_registry || return 1
-  local result
-  result=$(registry_projects | jq -r --arg name "$name" '.[] | select(.name == $name)')
-  if [ -z "$result" ]; then
-    error "Project '$name' not found in registry"
+
+  local matches count
+  matches=$(registry_projects | jq -c --arg name "$name" '[.[] | select(.name == $name)]')
+  count=$(echo "$matches" | jq 'length')
+
+  if [ "$count" -eq 0 ]; then
+    error "Project '$name' not found"
     return 1
   fi
-  echo "$result"
+
+  # Two projects answering to one name would otherwise hand the caller two
+  # records and let it build a path out of both.
+  if [ "$count" -gt 1 ]; then
+    error "Ambiguous project name '$name' — found $count projects:"
+    echo "$matches" | jq -r '.[] | "  " + .path' >&2
+    error "Rename one of them, or drop the source that introduced it"
+    return 1
+  fi
+
+  echo "$matches" | jq -r '.[0]'
 }

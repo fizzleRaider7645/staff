@@ -69,7 +69,6 @@ cat > "$SB/repo/mcps/audit-mcp/staff.json" <<'JSON'
  "version":"0.1.0","tags":[],
  "install":{"type":"mcp","mcp_config":{"command":"node","args":["${PROJECT_ROOT}/dist/i.js"]}}}
 JSON
-run "$STAFF" registry rebuild
 run "$STAFF" install audit-mcp --scope user
 ( cd "$SB/proj" && "$STAFF" install audit-mcp --scope project ) >/dev/null 2>&1
 

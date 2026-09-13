@@ -91,11 +91,6 @@ EOF
     return 1
   fi
 
-  if ensure_registry >/dev/null 2>&1; then
-    source "$STAFF_ROOT/lib/staff/cmd_registry.sh"
-    registry_rebuild >/dev/null || return 1
-  fi
-
   local source_dir="$STAFF_ROOT/sources/$source_name"
   local link_path="$source_dir/repo"
   local metadata_path="$source_dir/source.toml"
@@ -198,9 +193,6 @@ synthesized = ${project_synthesized[$idx]}
 native_format = "${project_native_formats[$idx]}"
 EOF
   done
-
-  source "$STAFF_ROOT/lib/staff/cmd_registry.sh"
-  registry_rebuild || return 1
 
   local install_status="registered"
   local install_failures=()
@@ -573,9 +565,6 @@ project_count = ${#SRC_NAMES[@]}
 EOF
   write_source_metadata_projects "$metadata_path"
 
-  source "$STAFF_ROOT/lib/staff/cmd_registry.sh"
-  registry_rebuild || return 1
-
   # Refresh anything already installed; install additions when the bundle was
   # registered with auto-install. Projects the user never installed stay out.
   local installed_count=0 refreshed_count=0
@@ -679,9 +668,6 @@ EOF
 
   # Only ever removes the bundle directory — the symlink target is untouched.
   rm -rf "$source_dir"
-
-  source "$STAFF_ROOT/lib/staff/cmd_registry.sh"
-  registry_rebuild || return 1
 
   ok "Removed source bundle '$source_name'"
   [ "$uninstalled" -gt 0 ] && info "Uninstalled $uninstalled project(s)"

@@ -54,7 +54,6 @@ sandbox_init() {
   mkdir -p "$SB/repo"/{skills,mcps,agents,tools,harnesses,sources}
   export HOME="$SB/home"
   STAFF="$SB/repo/bin/staff"
-  "$STAFF" registry rebuild >/dev/null 2>&1
 }
 
 sandbox_cleanup() {

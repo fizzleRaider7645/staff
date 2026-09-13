@@ -20,7 +20,6 @@ cat > "$SB/repo/tools/local-tool/staff.json" <<JSON
  "build":{"command":"echo built > '$SB/local-built'"},
  "install":{"type":"tool","binary":"bin/run","build_first":true}}
 JSON
-run "$STAFF" registry rebuild
 run "$STAFF" install local-tool
 assert_ok "local project installs and builds"
 assert_file "local build command ran" "$SB/local-built"

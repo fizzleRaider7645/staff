@@ -49,38 +49,33 @@ EOF
     fi
   done
 
-  # Registry check
-  printf "\n${BOLD}Registry${RESET}\n"
-  if [ -f "$STAFF_REGISTRY" ]; then
-    require_jq
-    local count
-    count=$(registry_projects | jq 'length')
-    local gen_at
-    gen_at=$(jq -r '.generated_at' "$STAFF_REGISTRY")
-    ok "registry.json exists: $count project(s), generated $gen_at"
+  # Projects
+  printf "\n${BOLD}Projects${RESET}\n"
+  require_jq
+  local all count
+  all=$(registry_projects)
+  count=$(echo "$all" | jq 'length')
+  ok "$count project(s) discovered"
 
-    # Check if any staff.json is newer than registry
-    local registry_mtime
-    registry_mtime=$(stat -f %m "$STAFF_REGISTRY" 2>/dev/null || stat -c %Y "$STAFF_REGISTRY" 2>/dev/null)
-    local stale=false
-    local cat_dir
-    for cat_dir in $CATEGORIES; do
-      for manifest in "$STAFF_ROOT/$cat_dir"/*/staff.json; do
-        [ -f "$manifest" ] || continue
-        local manifest_mtime
-        manifest_mtime=$(stat -f %m "$manifest" 2>/dev/null || stat -c %Y "$manifest" 2>/dev/null)
-        if [ "$manifest_mtime" -gt "$registry_mtime" ] 2>/dev/null; then
-          stale=true
-          break 2
-        fi
-      done
-    done
-    if [ "$stale" = true ]; then
-      warn "Registry may be stale — run: staff registry rebuild"
-      issues=$((issues + 1))
-    fi
-  else
-    warn "registry.json not found — run: staff registry rebuild"
+  # There is no index to fall out of sync, but two projects can still answer
+  # to one name, which makes `staff install <name>` ambiguous.
+  local dupes
+  dupes=$(echo "$all" | jq -r '
+    group_by(.name)[] | select(length > 1)
+    | "  " + .[0].name + ": " + ([.[].path] | join(", "))
+  ')
+  if [ -n "$dupes" ]; then
+    error "Duplicate project name(s):"
+    printf '%s\n' "$dupes" >&2
+    issues=$((issues + 1))
+  fi
+
+  # A manifest missing its identifying fields would show up as a null row
+  local malformed
+  malformed=$(echo "$all" | jq -r '.[] | select(.name == null or .description == null) | "  " + .path')
+  if [ -n "$malformed" ]; then
+    error "Manifest(s) missing name or description:"
+    printf '%s\n' "$malformed" >&2
     issues=$((issues + 1))
   fi
 

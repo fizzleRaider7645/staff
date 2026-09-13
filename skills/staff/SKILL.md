@@ -38,7 +38,6 @@ staff install <project> [--scope user|project] [--allow-build]
 staff uninstall <project> [--scope user|project]
 staff build <project> [--allow-build]
 staff doctor
-staff registry rebuild
 ```
 
 Categories for `init`: skill, mcp, agent, tool, harness, lib.
@@ -46,12 +45,12 @@ Categories for `init`: skill, mcp, agent, tool, harness, lib.
 ## When to use which command
 
 - **Starting a new project**: `staff init <category> <name>` — creates the directory, `staff.json`, and starter files. Rebuilds the registry automatically.
-- **Listing what exists**: `staff list` — reads the union of `registry.json` (local, committed) and `sources/registry.json` (sourced, gitignored). Filter with `--category`, `--language`, `--tag`, `--status`, `--sourced`. Category accepts singular or plural (`skill` or `skills`); unknown categories and statuses are rejected rather than silently matching nothing.
+- **Listing what exists**: `staff list` — walks the tree for `staff.json` manifests; there is no index to rebuild. Filter with `--category`, `--language`, `--tag`, `--status`, `--sourced`. Category accepts singular or plural (`skill` or `skills`); unknown categories and statuses are rejected rather than silently matching nothing.
 - **Adding external projects**: `staff add_source <repo-name> <path>` — creates `sources/<repo-name>/` (read-only symlink + source metadata), discovers projects via native `staff.json` or per-category format recognition (SKILL.md, agent frontmatter), rebuilds the registry, and auto-installs by default.
-- **Syncing an external source**: `staff update_source <repo-name>` — re-runs discovery against the existing symlink, installs what upstream added, uninstalls what it dropped, and re-derives synthesized manifests. Discovery only runs at `add_source`/`update_source` time, never on `registry rebuild`, so this is the only way to pick up upstream changes. `staff doctor` flags sources whose git SHA has moved.
+- **Syncing an external source**: `staff update_source <repo-name>` — re-runs discovery against the existing symlink, installs what upstream added, uninstalls what it dropped, and re-derives synthesized manifests. Foreign-format discovery runs only at `add_source`/`update_source` time — a plain `staff list` will not re-synthesize manifests — so this is the only way to pick up upstream changes. `staff doctor` flags sources whose git SHA has moved.
 - **Dropping an external source**: `staff remove_source <repo-name>` — uninstalls every project it contributed, then removes `sources/<repo-name>/`. The external repo is never modified.
 - **Wiring a project into Claude Code**: `staff install <project>` — symlinks skills, adds MCP servers to `~/.claude.json` (user) or `.mcp.json` (project), links agents as `<project>.md`, or creates tool wrappers depending on category.
-- **After changing any `staff.json`**: `staff registry rebuild` — regenerates both indexes from all manifests. Refuses to write if two projects share a name or a source symlink no longer resolves.
+- **After changing any `staff.json`**: nothing. Discovery is live. `staff doctor` reports duplicate project names and unresolvable source links.
 - **Checking health**: `staff doctor` — verifies jq, registry, and all installed projects.
 
 ## Project manifest (`staff.json`)

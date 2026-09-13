@@ -32,7 +32,6 @@ ${BOLD}Commands:${RESET}
   build             Build a project
   init              Scaffold a new project from a template
   doctor            Check installation health
-  registry rebuild  Rebuild the registry from staff.json files
 
 ${BOLD}Options:${RESET}
   -h, --help        Show this help
@@ -100,11 +99,6 @@ case "$1" in
     shift
     source "$STAFF_ROOT/lib/staff/cmd_doctor.sh"
     cmd_doctor "$@"
-    ;;
-  registry)
-    shift
-    source "$STAFF_ROOT/lib/staff/cmd_registry.sh"
-    cmd_registry "$@"
     ;;
   *)
     error "Unknown command: $1"

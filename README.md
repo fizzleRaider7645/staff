@@ -33,7 +33,6 @@ staff install <project>             # Wire it into Claude Code
 staff uninstall <project>           # Remove an installed project
 staff build <project>               # Build a project
 staff doctor                        # Check installation health
-staff registry rebuild              # Regenerate registry.json
 ```
 
 Categories: `skill`, `mcp`, `agent`, `tool`, `harness`, `lib`
@@ -98,9 +97,6 @@ staff list --sourced true
 # Install later if you skipped auto-install
 staff install pdf
 
-# Rebuild the registry manually only when you need to rescan changes
-staff registry rebuild
-
 # Inspect the source bundle metadata
 cat sources/anthropic_skills/source.toml
 ls -l sources/anthropic_skills/repo
@@ -133,7 +129,7 @@ Each project is self-contained with its own deps, build, and a `staff.json` mani
   package.json | pyproject.toml | go.mod | Cargo.toml
 ```
 
-Projects in this repo are indexed in `registry.json` at the repo root, which is committed. Projects ingested from external repos are indexed in `sources/registry.json`, which is gitignored — those entries point at absolute, machine-local paths, so they are rebuilt per machine rather than shared. `staff list` reads both. Run `staff registry rebuild` to regenerate them.
+There is no index file. Every command walks the tree for `staff.json` manifests, which takes roughly a tenth of a second across this repo and its sources — so a manifest you add, edit or delete takes effect immediately, with nothing to regenerate and no cache that can drift from the disk.
 
 ## How install works
 
@@ -150,4 +146,4 @@ Projects in this repo are indexed in `registry.json` at the repo root, which is 
 staff init <category> <name> [--lang ts|python|go]
 ```
 
-Or manually: create the directory, add `staff.json` and a README, then run `staff registry rebuild`.
+Or manually: create the directory and add a `staff.json` and a README. It shows up on the next command.

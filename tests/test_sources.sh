@@ -20,8 +20,8 @@ assert_file "source metadata written" "$SB/repo/sources/extrepo/source.toml"
 assert_symlink_resolves "discovered skill installed" "$HOME/.claude/skills/alpha-skill/SKILL.md"
 
 # A description whose plain scalar ends in a quote must survive synthesis.
-assert_eq "synthesized description is intact" 'Says "hello there."' \
-  "$(jq -r '.projects[] | select(.name == "beta-skill") | .description' "$SB/repo/sources/registry.json")"
+run "$STAFF" list
+assert_output_contains "synthesized description is intact" 'Says "hello there."'
 
 # --- the source repo is never written to -----------------------------------
 
@@ -33,7 +33,7 @@ run "$STAFF" add_source extrepo "$EXT"
 assert_fails "re-adding an existing bundle fails"
 assert_output_contains "re-add suggests update_source" "staff update_source extrepo"
 
-# --- drift: registry rebuild alone must not silently pick it up ------------
+# --- drift: foreign-format discovery runs only at add/update time ----------
 
 mkdir -p "$EXT/skills/gamma-skill"
 printf -- '---\nname: gamma-skill\ndescription: Does gamma things.\n---\n' \
@@ -43,10 +43,9 @@ printf -- '---\nname: alpha-skill\ndescription: Revised alpha.\n---\n' \
   > "$EXT/skills/alpha-skill/SKILL.md"
 git_init_commit "$EXT" drift
 
-run "$STAFF" registry rebuild
-assert_ok "rebuild still succeeds after upstream drift"
-assert_eq "rebuild does not re-run discovery" "2" \
-  "$(jq '.projects | length' "$SB/repo/sources/registry.json")"
+run "$STAFF" list --sourced true
+assert_eq "a plain list does not re-synthesize foreign manifests" "2" \
+  "$(printf '%s\n' "$LAST_OUTPUT" | grep -c 'markdown')"
 
 # --- doctor notices the drift ----------------------------------------------
 
@@ -62,10 +61,10 @@ assert_output_contains "reports the removal" "beta-skill"
 
 assert_symlink_resolves "added skill installed" "$HOME/.claude/skills/gamma-skill/SKILL.md"
 assert_no_file "dropped skill uninstalled" "$HOME/.claude/skills/beta-skill"
-assert_eq "edited description re-derived" "Revised alpha." \
-  "$(jq -r '.projects[] | select(.name == "alpha-skill") | .description' "$SB/repo/sources/registry.json")"
-assert_eq "index reflects the new project set" "2" \
-  "$(jq '.projects | length' "$SB/repo/sources/registry.json")"
+run "$STAFF" list --sourced true
+assert_output_contains "edited description re-derived" "Revised alpha."
+assert_eq "the discovered set reflects the update" "2" \
+  "$(printf '%s\n' "$LAST_OUTPUT" | grep -c 'markdown')"
 
 run "$STAFF" update_source extrepo
 assert_ok "a second update is a no-op"

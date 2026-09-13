@@ -121,11 +121,6 @@ EOF
     scaffold_minimal "$project_dir" "$name" "$category" "$lang"
   fi
 
-  # Rebuild registry
-  require_jq
-  source "$STAFF_ROOT/lib/staff/cmd_registry.sh"
-  registry_rebuild
-
   ok "Created $category '$name' at $category_dir/$name"
   info "Next: cd $category_dir/$name && edit staff.json"
 }

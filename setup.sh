@@ -69,10 +69,6 @@ if [ ! -f "$STATE_DIR/installed.json" ]; then
 fi
 info "State directory ready: $STATE_DIR"
 
-# Rebuild registry
-info "Rebuilding registry..."
-"$STAFF_BIN" registry rebuild
-
 echo ""
 echo "${BOLD}Setup complete!${RESET}"
 echo ""

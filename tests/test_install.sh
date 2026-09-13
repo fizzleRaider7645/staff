@@ -46,8 +46,6 @@ cat > "$SB/repo/mcps/demo-mcp/staff.json" <<'JSON'
  "version":"0.1.0","tags":[],
  "install":{"type":"mcp","mcp_config":{"command":"node","args":["${PROJECT_ROOT}/dist/index.js"]}}}
 JSON
-run "$STAFF" registry rebuild
-assert_ok "rebuild picks up the mcp"
 
 run "$STAFF" install demo-mcp --scope user
 assert_ok "install mcp at user scope"
