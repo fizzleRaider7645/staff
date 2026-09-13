@@ -123,48 +123,66 @@ EOF
     if [ "$install_count" -eq 0 ]; then
       info "No projects installed"
     else
-      while read -r name; do
-        local entry
-        entry=$(jq -r --arg name "$name" '.installations[] | select(.project == $name)' "$STAFF_INSTALLED")
+      # Iterate installation records, not project names: a project can be
+      # installed at both user and project scope, and each record carries its
+      # own target and symlinks. Selecting by name returned every scope's
+      # record at once, which reported each link once per scope and collapsed
+      # a multi-scope .target into two lines that matched no file at all.
+      local entry name scope target label multi
+      while IFS= read -r entry; do
+        [ -n "$entry" ] || continue
+
+        name=$(echo "$entry" | jq -r '.project')
+        scope=$(echo "$entry" | jq -r '.scope // "user"')
+        target=$(echo "$entry" | jq -r '.target')
+
+        # Only qualify the label when the same project is installed twice
+        multi=$(jq --arg n "$name" '[.installations[] | select(.project == $n)] | length' "$STAFF_INSTALLED")
+        label="$name"
+        [ "$multi" -gt 1 ] && label="$name ($scope)"
 
         local all_ok=true
 
         # Check symlinks
-        while read -r symlink; do
+        local symlink link_target
+        while IFS= read -r symlink; do
+          [ -n "$symlink" ] || continue
           if [ -L "$symlink" ]; then
-            local target
-            target=$(readlink "$symlink")
-            if [ -e "$target" ]; then
-              ok "$name: symlink OK ($symlink)"
+            link_target=$(readlink "$symlink")
+            if [ -e "$symlink" ]; then
+              ok "$label: symlink OK ($symlink)"
             else
-              error "$name: broken symlink ($symlink -> $target)"
+              error "$label: broken symlink ($symlink -> $link_target)"
               all_ok=false
             fi
           elif [ ! -e "$symlink" ]; then
-            error "$name: missing symlink ($symlink)"
+            error "$label: missing symlink ($symlink)"
             all_ok=false
           fi
         done < <(echo "$entry" | jq -r '.symlinks[]? // empty')
 
         # Check config keys
-        while read -r config_key; do
-          local settings_target
-          settings_target=$(echo "$entry" | jq -r '.target')
-          if [ -f "$settings_target" ]; then
-            local key_name="${config_key#mcpServers.}"
-            if jq -e --arg key "$key_name" '.mcpServers[$key]' "$settings_target" >/dev/null 2>&1; then
-              ok "$name: config key OK ($config_key)"
+        local config_key key_name
+        while IFS= read -r config_key; do
+          [ -n "$config_key" ] || continue
+          if [ -f "$target" ]; then
+            key_name="${config_key#mcpServers.}"
+            if jq -e --arg key "$key_name" '.mcpServers[$key]' "$target" >/dev/null 2>&1; then
+              ok "$label: config key OK ($config_key)"
             else
-              error "$name: missing config key ($config_key in $settings_target)"
+              error "$label: missing config key ($config_key in $target)"
               all_ok=false
             fi
+          else
+            error "$label: config file missing ($target)"
+            all_ok=false
           fi
         done < <(echo "$entry" | jq -r '.config_keys[]? // empty')
 
         if [ "$all_ok" = false ]; then
           issues=$((issues + 1))
         fi
-      done < <(jq -r '.installations[] | .project' "$STAFF_INSTALLED")
+      done < <(jq -c '.installations[]' "$STAFF_INSTALLED")
     fi
   fi
 
@@ -172,7 +190,8 @@ EOF
   printf "\n%s\n" "$(printf '%.0s─' {1..40})"
   if [ "$issues" -eq 0 ]; then
     ok "All checks passed"
-  else
-    warn "$issues issue(s) found"
+    return 0
   fi
+  warn "$issues issue(s) found"
+  return 1
 }
