@@ -14,7 +14,37 @@ assert_ok "init agent"
 
 run "$STAFF" install demo-skill
 assert_ok "install skill"
-assert_symlink_resolves "skill symlink resolves" "$HOME/.claude/skills/demo-skill/SKILL.md"
+assert_symlink_resolves "the skill directory is linked" "$HOME/.claude/skills/demo-skill"
+assert_skill_file_reachable "SKILL.md is reachable through it" "$HOME/.claude/skills/demo-skill" "SKILL.md"
+
+# --- migrating an install made by the old one-file layout -------------------
+# Earlier versions created a real directory holding a symlinked SKILL.md.
+# Reinstalling must replace that with a link to the skill directory.
+
+rm -rf "$HOME/.claude/skills/demo-skill"
+mkdir -p "$HOME/.claude/skills/demo-skill"
+ln -s "$SB/repo/skills/demo-skill/SKILL.md" "$HOME/.claude/skills/demo-skill/SKILL.md"
+run "$STAFF" install demo-skill
+assert_ok "reinstall over the old layout succeeds"
+assert_symlink_resolves "the old directory is replaced by a link" "$HOME/.claude/skills/demo-skill"
+
+# A directory staff did not create must never be destroyed.
+run "$STAFF" uninstall demo-skill
+mkdir -p "$HOME/.claude/skills/handmade"
+printf 'mine\n' > "$HOME/.claude/skills/handmade/notes.md"
+mkdir -p "$SB/repo/skills/handmade"
+cat > "$SB/repo/skills/handmade/staff.json" <<'JSON'
+{"name":"handmade","language":"markdown","description":"clashes with a real dir",
+ "status":"draft","version":"0.1.0","tags":[],"install":{"type":"skill","skill_file":"SKILL.md"}}
+JSON
+printf -- '---\nname: handmade\ndescription: d\n---\n' > "$SB/repo/skills/handmade/SKILL.md"
+run "$STAFF" install handmade
+assert_fails "refuses to clobber a directory staff did not create"
+assert_output_contains "says why" "staff did not create"
+assert_file "the user's own file survives" "$HOME/.claude/skills/handmade/notes.md"
+rm -rf "$HOME/.claude/skills/handmade" "$SB/repo/skills/handmade"
+
+run "$STAFF" install demo-skill
 
 # --- agents are named after the project, not after agent_file --------------
 # Every agent template ships an "agent.md". Linking by source filename meant

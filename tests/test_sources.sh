@@ -17,7 +17,13 @@ run "$STAFF" add_source extrepo "$EXT"
 assert_ok "add_source ingests a repo with no staff.json"
 assert_symlink_resolves "repo link resolves" "$SB/repo/sources/extrepo/repo"
 assert_file "source metadata written" "$SB/repo/sources/extrepo/source.toml"
-assert_symlink_resolves "discovered skill installed" "$HOME/.claude/skills/alpha-skill/SKILL.md"
+assert_symlink_resolves "discovered skill installed" "$HOME/.claude/skills/alpha-skill"
+# The whole point: a skill's supporting files must be reachable from the
+# installed location, not merely present back in the source repo.
+assert_skill_file_reachable "its reference file is reachable" \
+  "$HOME/.claude/skills/alpha-skill" "reference/guide.md"
+assert_skill_file_reachable "its script is reachable" \
+  "$HOME/.claude/skills/alpha-skill" "scripts/run.sh"
 
 # A description whose plain scalar ends in a quote must survive synthesis.
 run "$STAFF" list
@@ -35,9 +41,10 @@ assert_output_contains "re-add suggests update_source" "staff update_source extr
 
 # --- drift: foreign-format discovery runs only at add/update time ----------
 
-mkdir -p "$EXT/skills/gamma-skill"
+mkdir -p "$EXT/skills/gamma-skill/reference"
 printf -- '---\nname: gamma-skill\ndescription: Does gamma things.\n---\n' \
   > "$EXT/skills/gamma-skill/SKILL.md"
+printf 'guide for gamma-skill\n' > "$EXT/skills/gamma-skill/reference/guide.md"
 rm -rf "$EXT/skills/beta-skill"
 printf -- '---\nname: alpha-skill\ndescription: Revised alpha.\n---\n' \
   > "$EXT/skills/alpha-skill/SKILL.md"
@@ -59,7 +66,9 @@ assert_ok "update_source succeeds"
 assert_output_contains "reports the addition" "gamma-skill"
 assert_output_contains "reports the removal" "beta-skill"
 
-assert_symlink_resolves "added skill installed" "$HOME/.claude/skills/gamma-skill/SKILL.md"
+assert_symlink_resolves "added skill installed" "$HOME/.claude/skills/gamma-skill"
+assert_skill_file_reachable "the added skill brings its files" \
+  "$HOME/.claude/skills/gamma-skill" "reference/guide.md"
 assert_no_file "dropped skill uninstalled" "$HOME/.claude/skills/beta-skill"
 run "$STAFF" list --sourced true
 assert_output_contains "edited description re-derived" "Revised alpha."

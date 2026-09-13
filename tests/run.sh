@@ -67,6 +67,10 @@ trap sandbox_cleanup EXIT INT TERM
 
 # Create an external repo of Claude-format skills.
 #   make_source_repo <dir> <name>:<description> ...
+#
+# Each skill gets supporting files alongside SKILL.md, because real ones do:
+# of the 19 skills in anthropics/skills, 14 ship scripts or references, and a
+# fixture that is a lone SKILL.md cannot catch an installer that drops them.
 make_source_repo() {
   local dir="$1"; shift
   mkdir -p "$dir/skills"
@@ -74,10 +78,25 @@ make_source_repo() {
   for spec in "$@"; do
     name="${spec%%:*}"
     desc="${spec#*:}"
-    mkdir -p "$dir/skills/$name"
-    printf -- '---\nname: %s\ndescription: %s\n---\n\n# %s\n' "$name" "$desc" "$name" \
-      > "$dir/skills/$name/SKILL.md"
+    mkdir -p "$dir/skills/$name/reference" "$dir/skills/$name/scripts"
+    printf -- '---\nname: %s\ndescription: %s\n---\n\nSee reference/guide.md\n' \
+      "$name" "$desc" > "$dir/skills/$name/SKILL.md"
+    printf 'guide for %s\n' "$name" > "$dir/skills/$name/reference/guide.md"
+    printf '#!/bin/sh\necho %s\n' "$name" > "$dir/skills/$name/scripts/run.sh"
+    chmod +x "$dir/skills/$name/scripts/run.sh"
   done
+}
+
+# Assert a file is reachable *through the installed skill*, which is the only
+# path that matters — a skill referencing reference/guide.md must find it at
+# its own directory, not merely somewhere in the source repo.
+assert_skill_file_reachable() {
+  local msg="$1" skill_dir="$2" rel="$3"
+  if [ -r "$skill_dir/$rel" ]; then
+    _report_pass "$msg"
+  else
+    _report_fail "$msg" "not reachable through the installed skill: $skill_dir/$rel"
+  fi
 }
 
 git_init_commit() {

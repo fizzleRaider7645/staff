@@ -81,7 +81,7 @@ sdlc status                           # Show progress
 
 ## Adding external projects
 
-You can register external repos (from organizations, communities, or your own separate projects) into `staff` to ingest them as read-only dependencies, exposing whatever skills/agents/tools live inside so they're immediately usable. The repo is never written to — `staff add_source` only ever symlinks it in and rebuilds the registry.
+You can register external repos (from organizations, communities, or your own separate projects) into `staff` to ingest them as read-only dependencies, exposing whatever skills/agents/tools live inside so they're immediately usable. The repo is never written to — `staff add_source` only ever symlinks it in.
 
 ```bash
 # Register a staff-native external repo (has its own staff.json manifests)
@@ -136,9 +136,9 @@ There is no index file. Every command walks the tree for `staff.json` manifests,
 
 | Category | `staff install` action                         |
 | -------- | ---------------------------------------------- |
-| skill    | Symlinks into `~/.claude/skills/`              |
+| skill    | Symlinks the skill directory to `~/.claude/skills/<name>` |
 | mcp      | Merges config into Claude Code `settings.json` |
-| agent    | Symlinks into `~/.claude/agents/`              |
+| agent    | Symlinks the agent file to `~/.claude/agents/<name>.md` |
 | tool     | Creates wrapper script in `~/.local/bin/`      |
 
 ## Adding a new project

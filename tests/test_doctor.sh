@@ -19,8 +19,8 @@ assert_output_contains "reports the skill" "solo-skill: symlink OK"
 
 # --- a broken symlink must be caught and must fail the exit code ------------
 
-rm -f "$HOME/.claude/skills/solo-skill/SKILL.md"
-ln -s /nonexistent/target "$HOME/.claude/skills/solo-skill/SKILL.md"
+rm -f "$HOME/.claude/skills/solo-skill"
+ln -s /nonexistent/target "$HOME/.claude/skills/solo-skill"
 run "$STAFF" doctor
 assert_fails "doctor exits non-zero when it finds issues"
 assert_output_contains "reports the broken link" "broken symlink"
@@ -48,8 +48,8 @@ assert_output_contains "scope disambiguates the label" "solo-skill (user)"
 assert_output_contains "project scope labelled too" "solo-skill (project)"
 
 # Breaking only the project-scope copy must be attributed to that scope.
-rm -f "$SB/proj/.claude/skills/solo-skill/SKILL.md"
-ln -s /nonexistent/target "$SB/proj/.claude/skills/solo-skill/SKILL.md"
+rm -f "$SB/proj/.claude/skills/solo-skill"
+ln -s /nonexistent/target "$SB/proj/.claude/skills/solo-skill"
 run "$STAFF" doctor
 assert_fails "broken link at one scope fails doctor"
 assert_eq "exactly one broken link reported" "1" \

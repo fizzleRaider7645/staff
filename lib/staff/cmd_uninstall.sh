@@ -95,9 +95,11 @@ uninstall_entry() {
     fi
   done < <(echo "$entry" | jq -r '.symlinks[]? // empty')
 
-  # Remove the containing directory only if nothing else lives there
+  # Remove the containing directory only if nothing else lives there.
+  # A skill installs as a symlink to its own directory, so there is nothing
+  # left to tidy once that link is gone — this is for the shared agents dir.
   if [ "$category" = "skill" ] || [ "$category" = "agent" ]; then
-    if [ -d "$target" ] && [ -z "$(ls -A "$target" 2>/dev/null)" ]; then
+    if [ -d "$target" ] && [ ! -L "$target" ] && [ -z "$(ls -A "$target" 2>/dev/null)" ]; then
       rmdir "$target"
       info "Removed empty directory: $target"
     fi

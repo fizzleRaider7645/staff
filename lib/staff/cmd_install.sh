@@ -91,23 +91,64 @@ install_skill() {
   content_root=$(jq -r '.content_root // empty' "$manifest")
   project_path="${content_root:-$project_path}"
 
-  local target_dir
+  local skills_dir
   if [ "$scope" = "user" ]; then
-    target_dir="$HOME/.claude/skills/$name"
+    skills_dir="$HOME/.claude/skills"
   else
-    target_dir="$(pwd)/.claude/skills/$name"
+    skills_dir="$(pwd)/.claude/skills"
   fi
-
-  mkdir -p "$target_dir"
+  local link_path="$skills_dir/$name"
 
   local source_file="$project_path/$skill_file"
   if [ ! -f "$source_file" ]; then
     die "Skill file not found: $source_file"
   fi
 
-  ln -sf "$source_file" "$target_dir/$skill_file"
-  record_installation "$name" "skill" "$scope" "$target_dir" "$target_dir/$skill_file"
-  ok "Installed skill '$name' -> $target_dir"
+  if [ "$skill_file" != "SKILL.md" ]; then
+    warn "$name declares install.skill_file=$skill_file; Claude Code looks for SKILL.md"
+  fi
+
+  mkdir -p "$skills_dir"
+  replace_install_target "$link_path" "$name" || return 1
+
+  # Link the whole skill directory, not just SKILL.md. Most skills carry
+  # scripts, references and templates alongside it, and a skill whose
+  # SKILL.md says "read shared/foo.md" is silently broken without them.
+  # Linking the directory also means files added upstream appear with no
+  # reinstall.
+  ln -s "$project_path" "$link_path"
+  record_installation "$name" "skill" "$scope" "$link_path" "$link_path"
+  ok "Installed skill '$name' -> $link_path"
+}
+
+# Clear the way for a new install link. Replaces a previous symlink outright;
+# removes a real directory only when staff recorded installing this project
+# there, so a hand-made skill directory is never silently destroyed.
+replace_install_target() {
+  local link_path="$1" name="$2"
+
+  if [ -L "$link_path" ]; then
+    rm -f "$link_path"
+    return 0
+  fi
+
+  if [ -e "$link_path" ]; then
+    local known
+    known=$(jq -r --arg name "$name" --arg t "$link_path" '
+      [.installations[] | select(.project == $name) | select(.target == $t or (.symlinks[]? | startswith($t + "/")))] | length
+    ' "$STAFF_INSTALLED" 2>/dev/null || echo 0)
+
+    if [ "${known:-0}" -gt 0 ]; then
+      rm -rf "$link_path"
+      return 0
+    fi
+
+    error "Refusing to replace $link_path — it exists and staff did not create it"
+    error "Move it aside and re-run, or remove it yourself"
+    return 1
+  fi
+
+  return 0
 }
 
 install_mcp() {

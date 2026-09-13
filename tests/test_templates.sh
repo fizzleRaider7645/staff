@@ -11,7 +11,8 @@ run "$STAFF" init skill t-skill
 assert_ok "init skill"
 run "$STAFF" install t-skill
 assert_ok "scaffolded skill installs"
-assert_symlink_resolves "skill link resolves" "$HOME/.claude/skills/t-skill/SKILL.md"
+assert_symlink_resolves "skill directory linked" "$HOME/.claude/skills/t-skill"
+assert_skill_file_reachable "SKILL.md reachable" "$HOME/.claude/skills/t-skill" "SKILL.md"
 
 run "$STAFF" init agent t-agent
 assert_ok "init agent"
