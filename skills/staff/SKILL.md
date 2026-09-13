@@ -37,6 +37,8 @@ staff init <category> <name> [--lang ts|python|go|shell|markdown]
 staff install <project> [--scope user|project] [--allow-build]
 staff uninstall <project> [--scope user|project]
 staff build <project> [--allow-build]
+staff test <project> [--allow-test]
+staff test --all [--allow-test]
 staff doctor
 ```
 
@@ -51,6 +53,7 @@ Categories for `init`: skill, mcp, agent, tool, harness, lib.
 - **Dropping an external source**: `staff remove_source <repo-name>` — uninstalls every project it contributed, then removes `sources/<repo-name>/`. The external repo is never modified.
 - **Wiring a project into Claude Code**: `staff install <project>` — symlinks skills, adds MCP servers to `~/.claude.json` (user) or `.mcp.json` (project), links agents as `<project>.md`, or creates tool wrappers depending on category.
 - **After changing any `staff.json`**: nothing. Discovery is live. `staff doctor` reports duplicate project names and unresolvable source links.
+- **Running tests**: `staff test <project>` — runs `test.command` from the manifest, or infers one from the project's build files. `--all` runs every project's tests and summarises; projects with no tests are skipped rather than failed.
 - **Checking health**: `staff doctor` — verifies jq, registry, and all installed projects.
 
 ## Project manifest (`staff.json`)

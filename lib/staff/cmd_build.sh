@@ -73,7 +73,8 @@ EOF
   sourced=$(echo "$project_info" | jq -r '.sourced // false')
 
   info "Building $project_name..."
-  if run_build_command "$build_cmd" "$abs_path" "$sourced" "$allow_build" "$project_name"; then
+  if run_manifest_command "$build_cmd" "$abs_path" "$sourced" "$allow_build" \
+       "$project_name" "build" "--allow-build"; then
     ok "Build succeeded: $project_name"
   else
     die "Build failed: $project_name"

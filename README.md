@@ -30,6 +30,7 @@ staff update_source <name>          # Re-scan a registered source for upstream c
 staff remove_source <name>          # Unregister a source and uninstall what it provided
 staff init <category> <name>        # Scaffold a new project
 staff install <project>             # Wire it into Claude Code
+staff test <project>                # Run its tests (--all for every project)
 staff uninstall <project>           # Remove an installed project
 staff build <project>               # Build a project
 staff doctor                        # Check installation health
@@ -40,8 +41,8 @@ Categories: `skill`, `mcp`, `agent`, `tool`, `harness`, `lib`
 ## Testing
 
 ```bash
-./tests/run.sh                      # CLI suite (98 tests, bash + jq only)
-cd harnesses/sdlc && pytest         # SDLC harness suite (154 tests)
+./tests/run.sh                      # CLI suite (194 tests, bash + jq only)
+staff test --all                    # every project's own tests
 ```
 
 Each CLI test runs against a throwaway copy of the repo with its own `$HOME`, so

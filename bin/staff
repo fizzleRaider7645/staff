@@ -30,6 +30,7 @@ ${BOLD}Commands:${RESET}
   install           Install/wire up a project
   uninstall         Remove an installed project
   build             Build a project
+  test              Run a project's tests
   init              Scaffold a new project from a template
   doctor            Check installation health
 
@@ -89,6 +90,11 @@ case "$1" in
     shift
     source "$STAFF_ROOT/lib/staff/cmd_build.sh"
     cmd_build "$@"
+    ;;
+  test)
+    shift
+    source "$STAFF_ROOT/lib/staff/cmd_test.sh"
+    cmd_test "$@"
     ;;
   init)
     shift

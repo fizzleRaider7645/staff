@@ -24,6 +24,7 @@ staff init <cat> <name> Scaffold a new project from a template
 staff install <project> Wire up a project (symlink skill, register MCP, etc.)
 staff uninstall <name>  Remove an installed project
 staff build <project>   Build a project
+staff test <project>    Run a project's tests (--all for every project)
 staff doctor            Check installation health
 ```
 
@@ -43,7 +44,7 @@ synthesized manifest under `sources/<name>/generated/`.
 - **Flat structure**: every project is a direct child of its category dir. No sub-grouping by provider or language.
 - **Self-contained**: each project owns its own deps, build, and tests. No workspace-level hoisting.
 - **Naming**: use kebab-case for directory names (e.g., `mcps/google-drive-server/`).
-- **Manifest**: every project has a `staff.json` with name, language, description, status, install config. No `category` field — the directory a project lives in is its category, and `install.type` says how it installs.
+- **Manifest**: every project has a `staff.json` with name, language, description, status, install config, and optionally `build.command` / `test.command`. No `category` field — the directory a project lives in is its category, and `install.type` says how it installs.
 - **README per project**: every project has a README explaining what it does and how to run it.
 
 ## SDLC Harness
@@ -64,12 +65,19 @@ Architecture: hybrid engine (direct API for thinking phases, `claude` CLI for do
 
 ```
 ./tests/run.sh              Run the CLI test suite
-./tests/run.sh install      Run one suite (install, sources, registry, frontmatter)
+./tests/run.sh discovery    Run one suite (see tests/test_*.sh for names)
 ./tests/run.sh -v           Show output from failing commands
+
+staff test <project>        Run one project's own tests
+staff test --all            Run every project's tests
 ```
 
+`staff test` reads `test.command` from a project's `staff.json`, falling back to
+what its build files imply (`pyproject.toml` -> pytest, `go.mod` -> go test, and
+so on). Projects with no tests are skipped by `--all`, not failed.
+
 Zero dependencies beyond `bash` and `jq`. Every test runs against a throwaway copy
-of the repo with its own `$HOME`, so nothing touches the real registry, `~/.claude`,
+of the repo with its own `$HOME`, so nothing touches your real projects, `~/.claude`,
 or `~/.staff`. Add cases to `tests/test_<area>.sh`; the runner picks up any
 `tests/test_*.sh` automatically.
 

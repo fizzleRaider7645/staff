@@ -1,7 +1,7 @@
 {
   "name": "sdlc",
   "language": "python",
-  "description": "AI-powered SDLC orchestration — plan, architect, implement, verify, review, refine",
+  "description": "AI-powered SDLC orchestration \u2014 plan, architect, implement, verify, review, refine",
   "status": "alpha",
   "version": "0.1.0",
   "build": {
@@ -16,5 +16,8 @@
     "sdlc",
     "orchestration",
     "multi-provider"
-  ]
+  ],
+  "test": {
+    "command": "python -m pytest -q"
+  }
 }

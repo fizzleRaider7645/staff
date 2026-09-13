@@ -30,7 +30,7 @@ jobs:
         run: ./tests/run.sh
 
   sdlc:
-    name: SDLC harness tests
+    name: Project tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +39,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Install
         working-directory: harnesses/sdlc
         run: |
@@ -46,9 +49,9 @@ jobs:
           pip install -e .
           pip install pytest
 
-      - name: Run pytest
-        working-directory: harnesses/sdlc
-        run: python -m pytest -q
+      - name: Run project tests
+        # staff test --all walks the manifests, so CI does not hardcode paths
+        run: ./bin/staff test --all
 
   shellcheck:
     # Advisory for now: the shell has never been linted, so this reports

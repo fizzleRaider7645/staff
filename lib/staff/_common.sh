@@ -28,20 +28,23 @@ backup_config() {
   cp "$file" "${file}.bak.$(date -u +%Y%m%dT%H%M%SZ)"
 }
 
-# Run a build command declared in a staff.json.
+# Run a command declared in a staff.json — build.command or test.command.
 #
 # These strings need shell semantics ("npm install && npm run build"), so the
 # mitigation is consent rather than mechanism: for a project ingested from an
 # external repo via add_source, the command was written by a third party and
 # runs only when the user explicitly opts in. bash -c keeps it in its own
 # process rather than eval'ing it into the caller's shell.
-run_build_command() {
+#
+#   run_manifest_command <cmd> <dir> <sourced> <allow> <name> <kind> <flag>
+run_manifest_command() {
   local cmd="$1" dir="$2" sourced="$3" allow="$4" name="$5"
+  local kind="${6:-build}" flag="${7:---allow-build}"
 
   if [ "$sourced" = "true" ] && [ "$allow" != "true" ]; then
-    error "Refusing to run a build command from sourced project '$name'"
+    error "Refusing to run a $kind command from sourced project '$name'"
     error "  $cmd"
-    error "This command comes from an external repo. Re-run with --allow-build to run it."
+    error "This command comes from an external repo. Re-run with $flag to run it."
     return 1
   fi
 

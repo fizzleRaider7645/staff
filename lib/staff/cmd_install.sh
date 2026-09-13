@@ -121,8 +121,9 @@ install_mcp() {
     local build_cmd
     build_cmd=$(jq -r '.build.command // ""' "$manifest")
     if [ -n "$build_cmd" ]; then
-      run_build_command "$build_cmd" "$project_path" \
+      run_manifest_command "$build_cmd" "$project_path" \
         "${STAFF_PROJECT_SOURCED:-false}" "${STAFF_ALLOW_BUILD:-false}" "$name" \
+        "build" "--allow-build" \
         || die "Build failed"
     fi
   fi
@@ -213,8 +214,9 @@ install_tool() {
     local build_cmd
     build_cmd=$(jq -r '.build.command // ""' "$manifest")
     if [ -n "$build_cmd" ]; then
-      run_build_command "$build_cmd" "$project_path" \
+      run_manifest_command "$build_cmd" "$project_path" \
         "${STAFF_PROJECT_SOURCED:-false}" "${STAFF_ALLOW_BUILD:-false}" "$name" \
+        "build" "--allow-build" \
         || die "Build failed"
     fi
   fi
