@@ -1,6 +1,5 @@
 {
   "name": "staff",
-  "category": "skill",
   "language": "markdown",
   "description": "Claude Code skill for managing the staff monorepo — scaffolding, registry, install, conventions",
   "status": "alpha",
@@ -10,5 +9,9 @@
     "type": "skill",
     "skill_file": "SKILL.md"
   },
-  "tags": ["cli", "monorepo", "claude-code"]
+  "tags": [
+    "cli",
+    "monorepo",
+    "claude-code"
+  ]
 }

@@ -332,20 +332,14 @@ collect_source_projects() {
 
   for manifest in "$@"; do
     project_name=$(jq -r '.name // empty' "$manifest") || return 1
-    category=$(jq -r '.category // empty' "$manifest") || return 1
     install_type=$(jq -r '.install.type // empty' "$manifest") || return 1
     synthesized=$(jq -r '.synthesized // false' "$manifest") || return 1
     native_format=$(jq -r '.native_format // "staff"' "$manifest") || return 1
 
-    if [ -z "$project_name" ] || [ -z "$category" ] || [ -z "$install_type" ]; then
-      error "staff.json must define name, category, and install.type: $manifest"
+    if [ -z "$project_name" ] || [ -z "$install_type" ]; then
+      error "staff.json must define name and install.type: $manifest"
       return 1
     fi
-
-    case "$category" in
-      skill|mcp|agent|tool|harness|lib) ;;
-      *) error "Unsupported category in $manifest: $category"; return 1 ;;
-    esac
 
     case "$install_type" in
       skill|mcp|agent|tool) ;;
@@ -378,7 +372,7 @@ collect_source_projects() {
     esac
 
     SRC_NAMES+=("$project_name")
-    SRC_CATEGORIES+=("$category")
+    SRC_CATEGORIES+=("$install_type")
     SRC_INSTALL_TYPES+=("$install_type")
     SRC_REL_PATHS+=("$rel_manifest")
     SRC_SYNTHESIZED+=("$synthesized")

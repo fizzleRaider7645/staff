@@ -44,9 +44,9 @@ Categories for `init`: skill, mcp, agent, tool, harness, lib.
 
 ## When to use which command
 
-- **Starting a new project**: `staff init <category> <name>` — creates the directory, `staff.json`, and starter files. Rebuilds the registry automatically.
+- **Starting a new project**: `staff init <category> <name>` — creates the directory, `staff.json`, and starter files. The category argument picks the directory and the template; it is not written into the manifest.
 - **Listing what exists**: `staff list` — walks the tree for `staff.json` manifests; there is no index to rebuild. Filter with `--category`, `--language`, `--tag`, `--status`, `--sourced`. Category accepts singular or plural (`skill` or `skills`); unknown categories and statuses are rejected rather than silently matching nothing.
-- **Adding external projects**: `staff add_source <repo-name> <path>` — creates `sources/<repo-name>/` (read-only symlink + source metadata), discovers projects via native `staff.json` or per-category format recognition (SKILL.md, agent frontmatter), rebuilds the registry, and auto-installs by default.
+- **Adding external projects**: `staff add_source <repo-name> <path>` — creates `sources/<repo-name>/` (read-only symlink + source metadata), discovers projects via native `staff.json` or per-category format recognition (SKILL.md, agent frontmatter), and auto-installs by default.
 - **Syncing an external source**: `staff update_source <repo-name>` — re-runs discovery against the existing symlink, installs what upstream added, uninstalls what it dropped, and re-derives synthesized manifests. Foreign-format discovery runs only at `add_source`/`update_source` time — a plain `staff list` will not re-synthesize manifests — so this is the only way to pick up upstream changes. `staff doctor` flags sources whose git SHA has moved.
 - **Dropping an external source**: `staff remove_source <repo-name>` — uninstalls every project it contributed, then removes `sources/<repo-name>/`. The external repo is never modified.
 - **Wiring a project into Claude Code**: `staff install <project>` — symlinks skills, adds MCP servers to `~/.claude.json` (user) or `.mcp.json` (project), links agents as `<project>.md`, or creates tool wrappers depending on category.
@@ -60,7 +60,6 @@ Every project must have one. Key fields:
 ```json
 {
   "name": "project-name",
-  "category": "mcp",
   "language": "typescript",
   "description": "What it does",
   "status": "draft|alpha|beta|stable|deprecated",
@@ -74,7 +73,11 @@ Every project must have one. Key fields:
 }
 ```
 
-Install type must match category: skill→`skill`, mcp→`mcp`, agent→`agent`, tool→`tool`.
+There is no `category` field. A project's category is the directory it lives in —
+`mcps/foo` is an mcp — and `install.type` says how it wires into Claude Code. Those
+are usually the same word, which is why they used to be two fields holding one value,
+but they are genuinely different questions: `harnesses/sdlc` is a harness that
+installs as a `tool`. A `category` left in a manifest is ignored.
 
 ## Conventions to follow
 

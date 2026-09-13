@@ -43,7 +43,7 @@ synthesized manifest under `sources/<name>/generated/`.
 - **Flat structure**: every project is a direct child of its category dir. No sub-grouping by provider or language.
 - **Self-contained**: each project owns its own deps, build, and tests. No workspace-level hoisting.
 - **Naming**: use kebab-case for directory names (e.g., `mcps/google-drive-server/`).
-- **Manifest**: every project has a `staff.json` with name, category, language, description, status, install config.
+- **Manifest**: every project has a `staff.json` with name, language, description, status, install config. No `category` field — the directory a project lives in is its category, and `install.type` says how it installs.
 - **README per project**: every project has a README explaining what it does and how to run it.
 
 ## SDLC Harness

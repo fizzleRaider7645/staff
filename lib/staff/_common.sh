@@ -72,6 +72,30 @@ STAFF_INSTALLED="${STAFF_STATE_DIR}/installed.json"
 
 CATEGORIES="skills mcps agents tools harnesses lib"
 
+# A project's category is where it lives, not something it declares. The
+# manifest's job is to say how the project installs (install.type); the
+# directory says what kind of thing it is. Those were previously two fields
+# holding the same value in 39 of 40 manifests.
+category_singular() {
+  case "$1" in
+    skills)    echo "skill" ;;
+    mcps)      echo "mcp" ;;
+    agents)    echo "agent" ;;
+    tools)     echo "tool" ;;
+    harnesses) echo "harness" ;;
+    lib|libs)  echo "lib" ;;
+    *)         echo "$1" ;;
+  esac
+}
+
+# The plural->singular map as JSON, so jq can apply the same rule.
+category_map_json() {
+  local c
+  for c in $CATEGORIES; do
+    printf '%s\t%s\n' "$c" "$(category_singular "$c")"
+  done | jq -R -s 'split("\n") | map(select(length > 0) | split("\t")) | map({(.[0]): .[1]}) | add'
+}
+
 ensure_state_dir() {
   if [ ! -d "$STAFF_STATE_DIR" ]; then
     mkdir -p "$STAFF_STATE_DIR"
@@ -175,13 +199,28 @@ registry_projects() {
   contents=$(jq -s '.' "${manifests[@]}") || return 1
   meta=$(printf '%s\n' "${metas[@]}" | jq -s '.')
 
-  jq -n --argjson c "$contents" --argjson m "$meta" '
+  local catmap
+  catmap=$(category_map_json)
+
+  jq -n --argjson c "$contents" --argjson m "$meta" --argjson catmap "$catmap" '
+    # Category comes from the directory the manifest sits in. A manifest at
+    # the root of a sourced repo has no such signal, so it falls back to how
+    # it installs.
+    def category_of($path; $install_type):
+      ($path | split("/")) as $parts
+      | (if $parts[0] == "sources" then
+           if $parts[2] == "generated" then $parts[3]
+           elif $parts[2] == "repo" and ($parts | length) >= 5 then $parts[3]
+           else null end
+         else $parts[0] end) as $dir
+      | if $dir == null then $install_type else ($catmap[$dir] // $dir) end;
+
     [ range(0; $c | length) as $i
       | $c[$i] as $p
       | $m[$i] as $meta
       | {
           name: $p.name,
-          category: $p.category,
+          category: category_of($meta.path; ($p.install.type // "unknown")),
           language: $p.language,
           description: $p.description,
           status: $p.status,

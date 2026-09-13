@@ -54,9 +54,8 @@ EOF
   local project_info
   project_info=$(find_project "$project_name") || return 1
 
-  local project_path category
+  local project_path
   project_path=$(echo "$project_info" | jq -r '.path')
-  category=$(echo "$project_info" | jq -r '.category')
 
   # Consulted by install_mcp / install_tool before running build.command,
   # which for a sourced project was authored by a third party.

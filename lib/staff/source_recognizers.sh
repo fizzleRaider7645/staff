@@ -72,14 +72,12 @@ synthesize_manifest() {
 
   jq -n \
     --arg name "$derived_name" \
-    --arg category "$category" \
     --arg description "$description" \
     --arg content_root "$content_root" \
     --arg native_format "$native_format" \
     --argjson install "$install_json" \
     '{
       name: $name,
-      category: $category,
       language: "markdown",
       description: $description,
       status: "alpha",

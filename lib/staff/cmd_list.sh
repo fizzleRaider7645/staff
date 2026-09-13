@@ -1,20 +1,5 @@
 #!/usr/bin/env bash
 
-# Category directories are plural (skills/, mcps/) but manifests and the
-# registry store the singular. Accept either, so `--category skills` does not
-# silently return nothing.
-normalize_category() {
-  case "$1" in
-    skills)    echo "skill" ;;
-    mcps)      echo "mcp" ;;
-    agents)    echo "agent" ;;
-    tools)     echo "tool" ;;
-    harnesses) echo "harness" ;;
-    libs)      echo "lib" ;;
-    *)         echo "$1" ;;
-  esac
-}
-
 cmd_list() {
   require_jq
 
@@ -62,7 +47,7 @@ EOF
   done
 
   if [ -n "$filter_category" ]; then
-    filter_category=$(normalize_category "$filter_category")
+    filter_category=$(category_singular "$filter_category")
     case "$filter_category" in
       skill|mcp|agent|tool|harness|lib) ;;
       *)

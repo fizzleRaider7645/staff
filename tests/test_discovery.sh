@@ -44,6 +44,39 @@ case "$LAST_OUTPUT" in
   *) _report_pass "a removed manifest disappears at once" ;;
 esac
 
+# --- category comes from location, not from the manifest --------------------
+# category and install.type were the same value in 39 of 40 manifests. The
+# directory now says what a project is; the manifest says how it installs.
+
+mkdir -p "$SB/repo/harnesses/odd-one"
+cat > "$SB/repo/harnesses/odd-one/staff.json" <<'JSON'
+{"name":"odd-one","language":"python","description":"a harness that installs as a tool",
+ "status":"draft","version":"0.1.0","tags":[],"install":{"type":"tool","binary":"bin/run"}}
+JSON
+run "$STAFF" list --category harness
+assert_ok "location gives the category with no category field present"
+assert_output_contains "listed under its directory" "odd-one"
+
+run "$STAFF" list --category tool
+case "$LAST_OUTPUT" in
+  *odd-one*) _report_fail "install.type does not override location" "listed as a tool" ;;
+  *) _report_pass "install.type does not override location" ;;
+esac
+
+# A manifest that declares a category it is not in must not win.
+cat > "$SB/repo/harnesses/odd-one/staff.json" <<'JSON'
+{"name":"odd-one","category":"mcp","language":"python","description":"lying manifest",
+ "status":"draft","version":"0.1.0","tags":[],"install":{"type":"tool","binary":"bin/run"}}
+JSON
+run "$STAFF" list --category harness
+assert_output_contains "a declared category is ignored" "odd-one"
+run "$STAFF" list --category mcp
+case "$LAST_OUTPUT" in
+  *odd-one*) _report_fail "a declared category cannot relocate a project" "matched the declared value" ;;
+  *) _report_pass "a declared category cannot relocate a project" ;;
+esac
+rm -rf "$SB/repo/harnesses/odd-one"
+
 # --- a broken source warns, but does not take everything else down ----------
 # There is no index to empty, so skipping is safe as long as it is loud.
 

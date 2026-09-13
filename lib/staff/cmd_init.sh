@@ -186,12 +186,10 @@ scaffold_minimal() {
 
   jq -n \
     --arg name "$name" \
-    --arg category "$category" \
     --arg lang "$lang" \
     --argjson install "$install_block" \
     '{
       name: $name,
-      category: $category,
       language: $lang,
       description: "",
       status: "draft",

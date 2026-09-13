@@ -1,6 +1,5 @@
 {
   "name": "sdlc",
-  "category": "harness",
   "language": "python",
   "description": "AI-powered SDLC orchestration — plan, architect, implement, verify, review, refine",
   "status": "alpha",
@@ -13,5 +12,9 @@
     "binary": "bin/sdlc",
     "build_first": true
   },
-  "tags": ["sdlc", "orchestration", "multi-provider"]
+  "tags": [
+    "sdlc",
+    "orchestration",
+    "multi-provider"
+  ]
 }
