@@ -79,6 +79,10 @@ install_skill() {
   local skill_file
   skill_file=$(jq -r '.install.skill_file // "SKILL.md"' "$manifest")
 
+  local content_root
+  content_root=$(jq -r '.content_root // empty' "$manifest")
+  project_path="${content_root:-$project_path}"
+
   local target_dir
   if [ "$scope" = "user" ]; then
     target_dir="$HOME/.claude/skills/$name"
@@ -151,6 +155,10 @@ install_agent() {
   local agent_file
   agent_file=$(jq -r '.install.agent_file // "agent.md"' "$manifest")
 
+  local content_root
+  content_root=$(jq -r '.content_root // empty' "$manifest")
+  project_path="${content_root:-$project_path}"
+
   local target_dir
   if [ "$scope" = "user" ]; then
     target_dir="$HOME/.claude/agents"
@@ -172,6 +180,10 @@ install_agent() {
 
 install_tool() {
   local name="$1" project_path="$2" manifest="$3"
+
+  local content_root
+  content_root=$(jq -r '.content_root // empty' "$manifest")
+  project_path="${content_root:-$project_path}"
 
   local build_first
   build_first=$(jq -r '.install.build_first // false' "$manifest")

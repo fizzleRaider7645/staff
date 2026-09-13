@@ -28,21 +28,18 @@ registry_rebuild() {
   local projects="[]"
   local count=0
 
-  local cat_dir
-  for cat_dir in $CATEGORIES; do
-    local full_dir="$STAFF_ROOT/$cat_dir"
-    [ -d "$full_dir" ] || continue
+  add_registry_entry() {
+    local manifest="$1"
+    local rel_path="$2"
+    local sourced="$3"
+    local source_name="${4:-}"
 
-    for project_dir in "$full_dir"/*/; do
-      [ -d "$project_dir" ] || continue
-      local manifest="$project_dir/staff.json"
-      [ -f "$manifest" ] || continue
-
-      local rel_path="${project_dir#$STAFF_ROOT/}"
-      rel_path="${rel_path%/}"
-
-      local entry
-      entry=$(jq --arg path "$rel_path" '{
+    local entry
+    entry=$(jq \
+      --arg path "$rel_path" \
+      --arg sourced "$sourced" \
+      --arg source_name "$source_name" \
+      '{
         name: .name,
         category: .category,
         language: .language,
@@ -50,16 +47,94 @@ registry_rebuild() {
         status: .status,
         path: $path,
         tags: (.tags // []),
-        version: (.version // "0.0.0")
-      }' "$manifest") || {
-        warn "Failed to parse $manifest — skipping"
-        continue
-      }
+        version: (.version // "0.0.0"),
+        sourced: ($sourced == "true"),
+        synthesized: (.synthesized // false),
+        native_format: (.native_format // "staff")
+      } + (if $source_name != "" then {source_name: $source_name} else {} end)' "$manifest") || {
+      warn "Failed to parse $manifest — skipping"
+      return
+    }
 
-      projects=$(echo "$projects" | jq --argjson entry "$entry" '. + [$entry]')
-      count=$((count + 1))
+    projects=$(echo "$projects" | jq --argjson entry "$entry" '. + [$entry]')
+    count=$((count + 1))
+  }
+
+  scan_local_projects() {
+    local cat_dir
+    for cat_dir in $CATEGORIES; do
+      local full_dir="$STAFF_ROOT/$cat_dir"
+      [ -d "$full_dir" ] || continue
+
+      for project_dir in "$full_dir"/*/; do
+        [ -d "$project_dir" ] || continue
+        local manifest="$project_dir/staff.json"
+        [ -f "$manifest" ] || continue
+
+        local rel_path="${project_dir#$STAFF_ROOT/}"
+        rel_path="${rel_path%/}"
+        add_registry_entry "$manifest" "$rel_path" "false"
+      done
     done
-  done
+  }
+
+  scan_sourced_projects() {
+    local sources_root="$STAFF_ROOT/sources"
+    [ -d "$sources_root" ] || return 0
+
+    local source_dir
+    for source_dir in "$sources_root"/*/; do
+      [ -d "$source_dir" ] || continue
+      source_dir="${source_dir%/}"
+
+      local source_name
+      source_name="$(basename "$source_dir")"
+
+      local repo_dir="$source_dir/repo"
+      [ -d "$repo_dir" ] || continue
+
+      local root_manifest="$repo_dir/staff.json"
+      if [ -f "$root_manifest" ]; then
+        local root_rel_path="${repo_dir#$STAFF_ROOT/}"
+        root_rel_path="${root_rel_path%/}"
+        add_registry_entry "$root_manifest" "$root_rel_path" "true" "$source_name"
+      fi
+
+      local cat_dir
+      for cat_dir in $CATEGORIES; do
+        local full_dir="$repo_dir/$cat_dir"
+        [ -d "$full_dir" ] || continue
+
+        local project_dir
+        for project_dir in "$full_dir"/*/; do
+          [ -d "$project_dir" ] || continue
+          local manifest="$project_dir/staff.json"
+          [ -f "$manifest" ] || continue
+
+          local rel_path="${project_dir#$STAFF_ROOT/}"
+          rel_path="${rel_path%/}"
+          add_registry_entry "$manifest" "$rel_path" "true" "$source_name"
+        done
+      done
+
+      # Manifests staff synthesized for foreign-format projects (SKILL.md,
+      # agent-frontmatter) that have no staff.json of their own — cached
+      # here, never inside repo_dir (which stays a read-only symlink).
+      local generated_dir="$source_dir/generated"
+      [ -d "$generated_dir" ] || continue
+
+      local generated_manifest
+      while IFS= read -r generated_manifest; do
+        [ -n "$generated_manifest" ] || continue
+        local generated_project_dir="${generated_manifest%/staff.json}"
+        local rel_path="${generated_project_dir#$STAFF_ROOT/}"
+        add_registry_entry "$generated_manifest" "$rel_path" "true" "$source_name"
+      done < <(find "$generated_dir" -name staff.json)
+    done
+  }
+
+  scan_local_projects
+  scan_sourced_projects
 
   local timestamp
   timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

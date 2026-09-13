@@ -16,17 +16,21 @@ agents/       Agent definitions (.md for Claude Code agents) and Agent SDK orche
 tools/        Standalone CLI tools and utilities
 harnesses/    AI orchestration harnesses / frameworks
 lib/          Shared libraries (only when common code emerges across projects)
+sources/      Source bundles for external repos (repo symlink + source.toml metadata)
 templates/    Scaffolding templates for `staff init`
 ```
 
-Every project is a direct child of its category directory. No sub-grouping.
+Every local project is a direct child of its category directory. No sub-grouping.
+
+External projects can be registered into `sources/<repo-name>/` and managed alongside local projects. They stay strictly read-only — `sources/<repo-name>/repo` is a plain symlink, never written to. If the external repo has its own `staff.json` files, those are used directly; otherwise `add_source` recognizes each category's native format (`SKILL.md` for skills, agent-frontmatter `.md` under `agents/` for agents — mcp/tool auto-discovery isn't supported yet) and synthesizes a `staff.json` under `sources/<repo-name>/generated/` so the project installs through the normal `staff install` path.
 
 ## CLI reference
 
 Run these from anywhere — the CLI resolves the repo root from its own location.
 
 ```
-staff list [--category X] [--language X] [--tag X] [--status X]
+staff list [--category X] [--language X] [--tag X] [--status X] [--sourced true|false]
+staff add_source <repo-name> <path> [--scope user|project] [--no-install]
 staff init <category> <name> [--lang ts|python|go|shell|markdown]
 staff install <project> [--scope user|project]
 staff uninstall <project>
@@ -40,7 +44,8 @@ Categories for `init`: skill, mcp, agent, tool, harness, lib.
 ## When to use which command
 
 - **Starting a new project**: `staff init <category> <name>` — creates the directory, `staff.json`, and starter files. Rebuilds the registry automatically.
-- **Listing what exists**: `staff list` — reads from `registry.json`. Filter with `--category`, `--language`, `--tag`, `--status`.
+- **Listing what exists**: `staff list` — reads from `registry.json`. Filter with `--category`, `--language`, `--tag`, `--status`, `--sourced`.
+- **Adding external projects**: `staff add_source <repo-name> <path>` — creates `sources/<repo-name>/` (read-only symlink + source metadata), discovers projects via native `staff.json` or per-category format recognition (SKILL.md, agent frontmatter), rebuilds the registry, and auto-installs by default.
 - **Wiring a project into Claude Code**: `staff install <project>` — symlinks skills, merges MCP configs, links agents, or creates tool wrappers depending on category.
 - **After changing any `staff.json`**: `staff registry rebuild` — regenerates `registry.json` from all manifests.
 - **Checking health**: `staff doctor` — verifies jq, registry, and all installed projects.
@@ -58,10 +63,12 @@ Every project must have one. Key fields:
   "status": "draft|alpha|beta|stable|deprecated",
   "version": "0.1.0",
   "build": { "command": "npm run build" },
-  "install": { "type": "mcp", "mcp_config": { "command": "node", "args": ["dist/index.js"] } },
+  "install": {
+    "type": "mcp",
+    "mcp_config": { "command": "node", "args": ["dist/index.js"] }
+  },
   "tags": ["relevant", "tags"]
 }
-
 ```
 
 Install type must match category: skill→`skill`, mcp→`mcp`, agent→`agent`, tool→`tool`.

@@ -36,6 +36,9 @@ info "git found"
 BIN_DIR="$HOME/.local/bin"
 mkdir -p "$BIN_DIR"
 
+# Create sources/ directory for external projects
+mkdir -p "$SCRIPT_DIR/sources"
+
 # Symlink the CLI
 STAFF_BIN="$SCRIPT_DIR/bin/staff"
 LINK_PATH="$BIN_DIR/staff"

@@ -21,3 +21,6 @@ venv/
 
 # OS
 .DS_Store
+
+# External source bundles (machine-local: absolute symlinks + paths)
+sources/
