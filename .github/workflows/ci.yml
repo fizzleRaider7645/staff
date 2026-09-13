@@ -23,8 +23,11 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Report bash version
-        run: bash --version | head -1
+      - name: Report environment
+        run: |
+          bash --version | head -1
+          jq --version
+          command -v staff || echo "staff not on PATH (expected: setup.sh is not run in CI)"
 
       - name: Run test suite
         run: ./tests/run.sh

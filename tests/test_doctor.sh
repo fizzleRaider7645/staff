@@ -9,6 +9,12 @@ run "$STAFF" doctor
 assert_ok "doctor exits 0 on a clean install"
 assert_output_contains "reports a clean bill" "All checks passed"
 
+# Whether staff is on PATH is a property of the caller's shell, not of the
+# repo — doctor must stay clean without it, or it can never gate CI.
+run env PATH="/usr/bin:/bin:/usr/sbin:/sbin" "$STAFF" doctor
+assert_ok "doctor is clean even when staff is not on PATH"
+assert_output_contains "it still mentions the setup step" "setup.sh"
+
 # --- a healthy skill ---------------------------------------------------------
 
 run "$STAFF" init skill solo-skill

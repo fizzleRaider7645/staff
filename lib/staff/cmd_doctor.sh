@@ -22,12 +22,17 @@ EOF
   printf "%s\n\n" "$(printf '%.0s─' {1..40})"
 
   # CLI check
+  #
+  # Not counted as an issue: whether your shell can find `staff` is a
+  # convenience of your own setup, not a statement about the health of this
+  # repo or of anything installed from it. Counting it made doctor exit
+  # non-zero anywhere staff had not been symlinked onto PATH — CI included,
+  # where nothing runs setup.sh.
   printf "${BOLD}CLI${RESET}\n"
   if command -v staff >/dev/null 2>&1; then
     ok "staff is in PATH"
   else
-    warn "staff is not in PATH — run ./setup.sh"
-    issues=$((issues + 1))
+    info "staff is not in PATH — run ./setup.sh to add it"
   fi
 
   # Prerequisites
