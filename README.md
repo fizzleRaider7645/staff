@@ -121,7 +121,7 @@ Each project is self-contained with its own deps, build, and a `staff.json` mani
   package.json | pyproject.toml | go.mod | Cargo.toml
 ```
 
-The combined index lives at `registry.json` in the repo root. Run `staff registry rebuild` to regenerate it.
+Projects in this repo are indexed in `registry.json` at the repo root, which is committed. Projects ingested from external repos are indexed in `sources/registry.json`, which is gitignored — those entries point at absolute, machine-local paths, so they are rebuilt per machine rather than shared. `staff list` reads both. Run `staff registry rebuild` to regenerate them.
 
 ## How install works
 

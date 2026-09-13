@@ -54,7 +54,7 @@ EOF
   if [ -f "$STAFF_REGISTRY" ]; then
     require_jq
     local count
-    count=$(jq '.projects | length' "$STAFF_REGISTRY")
+    count=$(registry_projects | jq 'length')
     local gen_at
     gen_at=$(jq -r '.generated_at' "$STAFF_REGISTRY")
     ok "registry.json exists: $count project(s), generated $gen_at"

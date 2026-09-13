@@ -150,18 +150,53 @@ registry_rebuild() {
 
   if [ "$rebuild_errors" -gt 0 ]; then
     error "Registry NOT rebuilt — $rebuild_errors unresolvable source(s); existing registry.json left untouched"
-    error "Restore the missing path, or drop the bundle: rm -rf sources/<name>"
+    error "Restore the missing path, or drop the bundle: staff remove_source <name>"
+    return 1
+  fi
+
+  # Two projects answering to one name makes `staff install <name>` ambiguous:
+  # find_project returns both and the caller builds a nonsense path from them.
+  local dupes
+  dupes=$(echo "$projects" | jq -r '
+    group_by(.name)[] | select(length > 1)
+    | "  " + .[0].name + ": " + ([.[].path] | join(", "))
+  ')
+  if [ -n "$dupes" ]; then
+    error "Registry NOT rebuilt — duplicate project name(s):"
+    printf '%s\n' "$dupes" >&2
+    error "Rename one of them, or drop the source that introduced it"
     return 1
   fi
 
   local timestamp
   timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-  jq -n --argjson projects "$projects" --arg ts "$timestamp" '{
+  local local_projects sourced_projects local_count sourced_count
+  local_projects=$(echo "$projects" | jq '[.[] | select(.sourced == false)]')
+  sourced_projects=$(echo "$projects" | jq '[.[] | select(.sourced == true)]')
+  local_count=$(echo "$local_projects" | jq 'length')
+  sourced_count=$(echo "$sourced_projects" | jq 'length')
+
+  jq -n --argjson projects "$local_projects" --arg ts "$timestamp" '{
     version: 1,
     generated_at: $ts,
     projects: $projects
   }' > "$STAFF_REGISTRY"
 
-  ok "Registry rebuilt: $count project(s) indexed"
+  # Sourced projects point at absolute, machine-local paths, so their index
+  # lives under the gitignored sources/ rather than in the committed registry.
+  if [ -d "$STAFF_ROOT/sources" ] || [ "$sourced_count" -gt 0 ]; then
+    mkdir -p "$STAFF_ROOT/sources"
+    jq -n --argjson projects "$sourced_projects" --arg ts "$timestamp" '{
+      version: 1,
+      generated_at: $ts,
+      projects: $projects
+    }' > "$STAFF_SOURCE_REGISTRY"
+  fi
+
+  if [ "$sourced_count" -gt 0 ]; then
+    ok "Registry rebuilt: $local_count local + $sourced_count sourced project(s) indexed"
+  else
+    ok "Registry rebuilt: $count project(s) indexed"
+  fi
 }

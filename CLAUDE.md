@@ -30,8 +30,12 @@ staff registry rebuild  Regenerate registry.json from staff.json files
 
 ## Registry
 
-Every project has a `staff.json` manifest. The combined index is at `registry.json` in the repo root.
-Run `staff list` to query it. Run `staff registry rebuild` to regenerate it.
+Every project has a `staff.json` manifest. Projects that live in this repo are indexed in
+`registry.json` at the repo root, which is committed. Projects ingested from external repos
+are indexed separately in `sources/registry.json`, which is gitignored — their paths are
+absolute and machine-local, so the index cannot be shared.
+
+`staff list` queries both. Run `staff registry rebuild` to regenerate them.
 
 ## Conventions
 

@@ -49,7 +49,11 @@ resolve_staff_root() {
 STAFF_ROOT="${STAFF_ROOT:-$(resolve_staff_root)}"
 STAFF_STATE_DIR="${HOME}/.staff"
 STAFF_INSTALLED="${STAFF_STATE_DIR}/installed.json"
+# registry.json indexes projects that live in this repo and is committed.
+# Sourced projects are machine-local (absolute symlink targets), so they are
+# indexed separately under sources/, which is gitignored.
 STAFF_REGISTRY="${STAFF_ROOT}/registry.json"
+STAFF_SOURCE_REGISTRY="${STAFF_ROOT}/sources/registry.json"
 
 CATEGORIES="skills mcps agents tools harnesses lib"
 
@@ -69,13 +73,23 @@ ensure_registry() {
   fi
 }
 
+# Every indexed project, local and sourced, as a single JSON array.
+registry_projects() {
+  require_jq
+  local local_json='{"projects":[]}' source_json='{"projects":[]}'
+  [ -f "$STAFF_REGISTRY" ] && local_json=$(cat "$STAFF_REGISTRY")
+  [ -f "$STAFF_SOURCE_REGISTRY" ] && source_json=$(cat "$STAFF_SOURCE_REGISTRY")
+  jq -n --argjson a "$local_json" --argjson b "$source_json" \
+    '($a.projects // []) + ($b.projects // [])'
+}
+
 # Find a project by name in the registry
 find_project() {
   local name="$1"
   require_jq
   ensure_registry || return 1
   local result
-  result=$(jq -r --arg name "$name" '.projects[] | select(.name == $name)' "$STAFF_REGISTRY")
+  result=$(registry_projects | jq -r --arg name "$name" '.[] | select(.name == $name)')
   if [ -z "$result" ]; then
     error "Project '$name' not found in registry"
     return 1

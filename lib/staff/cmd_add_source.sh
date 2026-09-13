@@ -347,12 +347,12 @@ collect_source_projects() {
 
     if ensure_registry >/dev/null 2>&1; then
       local existing
-      existing=$(jq -r --arg name "$project_name" --arg src "$source_name" '
-        .projects[]
+      existing=$(registry_projects | jq -r --arg name "$project_name" --arg src "$source_name" '
+        .[]
         | select(.name == $name)
         | select((.source_name // "") != $src)
         | .path
-      ' "$STAFF_REGISTRY")
+      ')
       if [ -n "$existing" ]; then
         error "Project name '$project_name' already exists in registry at $existing"
         return 1
