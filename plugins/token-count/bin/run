@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+"""Run token-count straight from source, without installing it."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+from token_count.cli import main
+
+sys.exit(main())

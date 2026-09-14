@@ -1,0 +1,16 @@
+{
+  "name": "token-count",
+  "version": "0.1.0",
+  "description": "Count Claude tokens in files, directories, or stdin, with a context-window budget",
+  "author": {
+    "name": "Douglas Uretsky"
+  },
+  "homepage": "https://github.com/fizzleRaider7645/staff/tree/main/tools/token-count",
+  "repository": "https://github.com/fizzleRaider7645/staff",
+  "keywords": [
+    "claude",
+    "tokens",
+    "context",
+    "cli"
+  ]
+}

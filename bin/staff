@@ -32,6 +32,7 @@ ${BOLD}Commands:${RESET}
   build             Build a project
   test              Run a project's tests
   init              Scaffold a new project from a template
+  publish           Export a project as a Claude Code plugin
   doctor            Check installation health
 
 ${BOLD}Options:${RESET}
@@ -105,6 +106,11 @@ case "$1" in
     shift
     source "$STAFF_ROOT/lib/staff/cmd_doctor.sh"
     cmd_doctor "$@"
+    ;;
+  publish)
+    shift
+    source "$STAFF_ROOT/lib/staff/cmd_publish.sh"
+    cmd_publish "$@"
     ;;
   *)
     error "Unknown command: $1"

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "staff",
+  "owner": {
+    "name": "Douglas Uretsky"
+  },
+  "plugins": [
+    {
+      "name": "token-count",
+      "description": "Count Claude tokens in files, directories, or stdin, with a context-window budget",
+      "version": "0.1.0",
+      "source": "./plugins/token-count",
+      "author": {
+        "name": "Douglas Uretsky"
+      },
+      "homepage": "https://github.com/fizzleRaider7645/staff/tree/main/tools/token-count",
+      "keywords": [
+        "claude",
+        "tokens",
+        "context",
+        "cli"
+      ]
+    }
+  ],
+  "description": "AI tooling from the staff monorepo: skills, agents, MCP servers and command-line tools, packaged as Claude Code plugins"
+}

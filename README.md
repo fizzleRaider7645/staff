@@ -19,7 +19,7 @@ cd staff
 ./setup.sh
 ```
 
-`setup.sh` links the `staff` CLI into `~/.local/bin`, creates state at `~/.staff/`, and builds the project registry. Requires `jq` and `git`.
+`setup.sh` links the `staff` CLI into `~/.local/bin` and creates state at `~/.staff/`. Requires `jq` and `git`.
 
 ## CLI
 
@@ -33,6 +33,7 @@ staff install <project>             # Wire it into Claude Code
 staff test <project>                # Run its tests (--all for every project)
 staff uninstall <project>           # Remove an installed project
 staff build <project>               # Build a project
+staff publish <project>             # Export it as a Claude Code plugin
 staff doctor                        # Check installation health
 ```
 
@@ -41,7 +42,7 @@ Categories: `skill`, `mcp`, `agent`, `tool`, `harness`, `lib`
 ## Testing
 
 ```bash
-./tests/run.sh                      # CLI suite (194 tests, bash + jq only)
+./tests/run.sh                      # CLI suite (268 tests, bash + jq only)
 staff test --all                    # every project's own tests
 ```
 
@@ -137,9 +138,33 @@ There is no index file. Every command walks the tree for `staff.json` manifests,
 | Category | `staff install` action                         |
 | -------- | ---------------------------------------------- |
 | skill    | Symlinks the skill directory to `~/.claude/skills/<name>` |
-| mcp      | Merges config into Claude Code `settings.json` |
+| mcp      | Adds an `mcpServers` entry to `~/.claude.json` (user) or `.mcp.json` (project) |
 | agent    | Symlinks the agent file to `~/.claude/agents/<name>.md` |
 | tool     | Creates wrapper script in `~/.local/bin/`      |
+
+## Publishing as a plugin
+
+`staff install` is the inner loop: it links the working copy into `~/.claude`, so edits show up live. To hand a project to anyone else, export it as a Claude Code plugin:
+
+```bash
+staff publish token-count
+```
+
+That writes a self-contained snapshot to `plugins/token-count/` in the plugin loader's layout and lists it in `.claude-plugin/marketplace.json`, which makes this repo a plugin marketplace:
+
+```
+/plugin marketplace add fizzleRaider7645/staff
+/plugin install token-count@staff
+```
+
+| Install type | Published as |
+| ------------ | ------------ |
+| skill | `skills/<name>/` — the whole directory, supporting files included |
+| agent | `agents/<name>.md` |
+| mcp | `.mcp.json` plus the project; `${PROJECT_ROOT}` becomes `${CLAUDE_PLUGIN_ROOT}` |
+| tool | the project plus `skills/<name>/` from its `skill/SKILL.md`, since plugins have no binary component |
+
+The plugin's version is the project's `staff.json` version: bump it and republish to ship a change. `staff doctor` reports a published plugin that has fallen behind its project, and publish runs `claude plugin validate` when `claude` is on PATH. Files hidden by `.gitignore` never reach a clone of the marketplace, so publish warns when the snapshot contains any.
 
 ## Adding a new project
 

@@ -13,6 +13,8 @@ Monorepo of AI tooling: skills, MCP servers, agents, tools, and harnesses. Multi
 - `lib/staff/` - Internal CLI command modules (not a user project)
 - `bin/staff` - The staff CLI entry point
 - `templates/` - Scaffolding templates for new projects
+- `plugins/` - Plugin snapshots written by `staff publish`; not projects, not scanned
+- `.claude-plugin/marketplace.json` - Makes the repo a Claude Code plugin marketplace
 
 ## Staff CLI
 
@@ -25,6 +27,7 @@ staff install <project> Wire up a project (link skill dir, register MCP, etc.)
 staff uninstall <name>  Remove an installed project
 staff build <project>   Build a project
 staff test <project>    Run a project's tests (--all for every project)
+staff publish <project> Export a project as a Claude Code plugin (plugins/<name> + marketplace.json)
 staff doctor            Check installation health
 ```
 

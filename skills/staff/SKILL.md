@@ -18,6 +18,8 @@ harnesses/    AI orchestration harnesses / frameworks
 lib/          Shared libraries (only when common code emerges across projects)
 sources/      Source bundles for external repos (repo symlink + source.toml metadata)
 templates/    Scaffolding templates for `staff init`
+plugins/      Plugin snapshots written by `staff publish` — not projects, never scanned
+.claude-plugin/marketplace.json   Lists the published plugins; makes this repo a marketplace
 ```
 
 Every local project is a direct child of its category directory. No sub-grouping.
@@ -39,6 +41,7 @@ staff uninstall <project> [--scope user|project]
 staff build <project> [--allow-build]
 staff test <project> [--allow-test]
 staff test --all [--allow-test]
+staff publish <project> [--out DIR] [--marketplace NAME] [--allow-build]
 staff doctor
 ```
 
@@ -54,7 +57,8 @@ Categories for `init`: skill, mcp, agent, tool, harness, lib.
 - **Wiring a project into Claude Code**: `staff install <project>` — links a skill's whole directory to `~/.claude/skills/<name>` (skills carry scripts and references alongside SKILL.md; linking only SKILL.md leaves those unreachable), adds MCP servers to `~/.claude.json` (user) or `.mcp.json` (project), links agents as `<project>.md`, or creates tool wrappers depending on category.
 - **After changing any `staff.json`**: nothing. Discovery is live. `staff doctor` reports duplicate project names and unresolvable source links.
 - **Running tests**: `staff test <project>` — runs `test.command` from the manifest, or infers one from the project's build files. `--all` runs every project's tests and summarises; projects with no tests are skipped rather than failed.
-- **Checking health**: `staff doctor` — verifies jq, registry, and all installed projects.
+- **Sharing a project outside this repo**: `staff publish <project>` — writes a self-contained Claude Code plugin to `plugins/<name>/` (skill → `skills/<name>/`, agent → `agents/<name>.md`, mcp → `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}`, tool → the project behind its `skill/SKILL.md`) and lists it in `.claude-plugin/marketplace.json`. It is a copy, not a link: re-run after changes and bump `version` in `staff.json` to ship them. A tool should carry a `skill/SKILL.md` that says when Claude should reach for it and runs `${CLAUDE_PLUGIN_ROOT}/<binary>`; without one publish generates a thin placeholder.
+- **Checking health**: `staff doctor` — verifies jq, registry, all installed projects, and that every published plugin matches its project's version.
 
 ## Project manifest (`staff.json`)
 

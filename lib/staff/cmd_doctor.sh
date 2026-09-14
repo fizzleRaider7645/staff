@@ -114,6 +114,47 @@ EOF
     done
   fi
 
+  # Published plugins
+  #
+  # plugins/<name> is a snapshot of a project, so it can fall behind the
+  # project it came from. The version is the contract: a bump that was never
+  # republished is a release that never shipped.
+  if [ -d "$STAFF_ROOT/plugins" ]; then
+    printf "\n${BOLD}Published plugins${RESET}\n"
+    local plugin_dir pname pmanifest pver project_version
+    local mk_file="$STAFF_ROOT/.claude-plugin/marketplace.json"
+    for plugin_dir in "$STAFF_ROOT/plugins"/*/; do
+      [ -d "$plugin_dir" ] || continue
+      plugin_dir="${plugin_dir%/}"
+      pname="$(basename "$plugin_dir")"
+      pmanifest="$plugin_dir/.claude-plugin/plugin.json"
+
+      if [ ! -f "$pmanifest" ]; then
+        error "$pname: no .claude-plugin/plugin.json — not a plugin; run: staff publish $pname"
+        issues=$((issues + 1))
+        continue
+      fi
+
+      pver=$(jq -r '.version // ""' "$pmanifest")
+      project_version=$(echo "$all" | jq -r --arg n "$pname" '[.[] | select(.name == $n)] | .[0].version // empty')
+
+      if [ -z "$project_version" ]; then
+        warn "$pname: published, but no project by that name exists — remove plugins/$pname or restore the project"
+        issues=$((issues + 1))
+      elif [ "$pver" != "$project_version" ]; then
+        warn "$pname: published v$pver, project is v$project_version — run: staff publish $pname"
+        issues=$((issues + 1))
+      else
+        ok "$pname: v$pver matches its project"
+      fi
+
+      if ! jq -e --arg n "$pname" '.plugins[]? | select(.name == $n)' "$mk_file" >/dev/null 2>&1; then
+        warn "$pname: not listed in .claude-plugin/marketplace.json — run: staff publish $pname"
+        issues=$((issues + 1))
+      fi
+    done
+  fi
+
   # Installation audit
   printf "\n${BOLD}Installations${RESET}\n"
   ensure_state_dir
