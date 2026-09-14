@@ -41,6 +41,13 @@ export ANTHROPIC_API_KEY=...       # an API key
 ant auth login                     # or an OAuth profile the SDK reads itself
 ```
 
+An org-level key (one not scoped to a workspace) must name a workspace on
+every request:
+
+```bash
+export ANTHROPIC_WORKSPACE_ID=wrkspc_...   # or pass --workspace <id>
+```
+
 `bin/run` executes straight from source — no install step — so a checkout is
 enough to try it.
 
@@ -57,6 +64,7 @@ token-count [PATH ...] [options]
   --json          machine-readable output
   --top N         show only the N largest files
   --all           include hidden and vendor directories
+  --workspace ID  workspace for an org-level key (env: ANTHROPIC_WORKSPACE_ID)
   --workers N     parallel requests (default: 8)
   --no-budget     skip the context-window comparison
 ```

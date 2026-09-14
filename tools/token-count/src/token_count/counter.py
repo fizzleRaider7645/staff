@@ -27,6 +27,7 @@ SKIP_DIRS = {
 
 AUTH_FAILED = "authentication failed"
 AUTH_ABORTED = "skipped after authentication failure"
+WORKSPACE_REQUIRED = "workspace id required"
 
 SKIP_SUFFIXES = {".pyc", ".pyo", ".so", ".dylib", ".dll", ".a", ".o", ".class"}
 
@@ -66,7 +67,23 @@ def is_auth_error(exc: BaseException) -> bool:
     return "authentication_error" in str(exc)
 
 
-def api_counter() -> TokenCounter:
+def needs_workspace(exc: BaseException) -> bool:
+    """Whether the API refused because the key is not scoped to a workspace.
+
+    An org-level key must name a workspace on every request, so this fails the
+    same way for every file — global, not per-file.
+    """
+    return "not scoped to a workspace" in str(exc)
+
+
+def _client(workspace: str | None = None):
+    import anthropic
+
+    headers = {"anthropic-workspace-id": workspace} if workspace else None
+    return anthropic.Anthropic(default_headers=headers)
+
+
+def api_counter(workspace: str | None = None) -> TokenCounter:
     """A TokenCounter backed by the Anthropic API.
 
     Credentials resolve the way the SDK resolves them — ANTHROPIC_API_KEY, then
@@ -80,7 +97,7 @@ def api_counter() -> TokenCounter:
             "the anthropic package is required: pip install anthropic"
         ) from exc
 
-    client = anthropic.Anthropic()
+    client = _client(workspace)
 
     def count(text: str, model: str) -> int:
         response = client.messages.count_tokens(
@@ -92,17 +109,14 @@ def api_counter() -> TokenCounter:
     return count
 
 
-def context_window(model: str) -> int | None:
+def context_window(model: str, workspace: str | None = None) -> int | None:
     """The model's input limit, or None if it can't be determined.
 
     Read live from the Models API rather than hardcoded: context windows change
     between models and a stale table silently misreports the budget.
     """
     try:
-        import anthropic
-
-        client = anthropic.Anthropic()
-        info = client.models.retrieve(model)
+        info = _client(workspace).models.retrieve(model)
     except Exception:
         return None
     return getattr(info, "max_input_tokens", None)
@@ -193,6 +207,9 @@ def count_paths(
         try:
             return FileCount(path, count_text(text, model, counter))
         except Exception as exc:
+            if needs_workspace(exc):
+                auth_failed.set()
+                return FileCount(path, 0, error=WORKSPACE_REQUIRED)
             if is_auth_error(exc):
                 auth_failed.set()
                 return FileCount(path, 0, error=AUTH_FAILED)
