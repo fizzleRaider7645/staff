@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "token-count"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "Count Claude tokens in files, directories, or stdin"
+dependencies = ["anthropic>=0.40"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+token-count = "token_count.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+# The tool runs from source via bin/run, so its tests should too — no install
+# step required to check it out and run them.
+pythonpath = ["src"]
+testpaths = ["tests"]

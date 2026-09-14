@@ -1,0 +1,24 @@
+{
+  "name": "token-count",
+  "language": "python",
+  "description": "Count Claude tokens in files, directories, or stdin, with a context-window budget",
+  "status": "draft",
+  "version": "0.1.0",
+  "build": {
+    "command": "pip install -e ."
+  },
+  "install": {
+    "type": "tool",
+    "binary": "bin/run",
+    "build_first": false
+  },
+  "tags": [
+    "claude",
+    "tokens",
+    "context",
+    "cli"
+  ],
+  "test": {
+    "command": "python -m pytest -q"
+  }
+}
