@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 
 from token_count.counter import (
+    AUTH_ABORTED,
+    AUTH_FAILED,
     DEFAULT_MODEL,
     FileCount,
     api_counter,
@@ -14,6 +16,7 @@ from token_count.counter import (
     count_text,
     count_paths,
     credentials_present,
+    is_auth_error,
 )
 
 CREDENTIALS_HELP = """no Anthropic credentials found.
@@ -24,6 +27,10 @@ Set one of:
 
 Counts come from the API because they are model-specific; there is no accurate
 offline tokenizer for Claude."""
+
+AUTH_HELP = """the Anthropic API rejected these credentials.
+
+Check the key in ANTHROPIC_API_KEY, or re-authenticate with `ant auth login`."""
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -86,6 +93,9 @@ def main(argv: list[str] | None = None) -> int:
         try:
             total = count_text(text, args.model, counter)
         except Exception as exc:
+            if is_auth_error(exc):
+                print(f"token-count: {AUTH_HELP}", file=sys.stderr)
+                return 2
             print(f"token-count: {exc}", file=sys.stderr)
             return 1
         results = [FileCount(Path("<stdin>"), total)]
@@ -100,6 +110,11 @@ def main(argv: list[str] | None = None) -> int:
     skipped = [r for r in results if r.error == "not text"]
     failed = [r for r in results if not r.ok and r.error != "not text"]
     total = sum(r.tokens for r in counted)
+
+    # Bad credentials are not a per-file problem — say so once.
+    if any(r.error in (AUTH_FAILED, AUTH_ABORTED) for r in failed):
+        print(f"token-count: {AUTH_HELP}", file=sys.stderr)
+        return 2
 
     if not counted and not failed and skipped:
         noun = "file" if len(skipped) == 1 else "files"

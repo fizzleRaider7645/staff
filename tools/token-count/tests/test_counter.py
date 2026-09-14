@@ -172,3 +172,33 @@ def test_hidden_directories_are_still_skipped(tmp_path, monkeypatch):
     (tmp_path / "b.md").write_text("y")
     monkeypatch.chdir(tmp_path)
     assert [p.name for p in collect_paths(["."])] == ["b.md"]
+
+
+def _auth_error():
+    class AuthenticationError(Exception):
+        status_code = 401
+    return AuthenticationError("Error code: 401 - authentication_error")
+
+
+def test_recognises_auth_failures():
+    from token_count.counter import is_auth_error
+    assert is_auth_error(_auth_error())
+    assert not is_auth_error(RuntimeError("rate limited"))
+
+
+def test_auth_failure_stops_after_the_first_file(tmp_path):
+    from token_count.counter import AUTH_ABORTED, AUTH_FAILED
+    for i in range(8):
+        (tmp_path / f"f{i}.md").write_text("one two")
+
+    attempts = []
+
+    def always_401(text: str, model: str) -> int:
+        attempts.append(text)
+        raise _auth_error()
+
+    results = count_paths(collect_paths([tmp_path]), "m", always_401, workers=1)
+    errors = [r.error for r in results]
+    assert errors.count(AUTH_FAILED) == 1
+    assert errors.count(AUTH_ABORTED) == 7
+    assert len(attempts) == 1, "bad credentials must not fire a request per file"

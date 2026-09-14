@@ -44,6 +44,9 @@ ant auth login                     # or an OAuth profile the SDK reads itself
 `bin/run` executes straight from source — no install step — so a checkout is
 enough to try it.
 
+If the API rejects the credentials, the tool says so once and stops, rather
+than sending a doomed request for every file.
+
 ## Usage
 
 ```
@@ -79,7 +82,7 @@ rather than counted.
 |---|---|
 | 0 | counted successfully (or nothing countable was found) |
 | 1 | every file failed, or no paths matched |
-| 2 | no credentials, or the `anthropic` package is missing |
+| 2 | no credentials, credentials rejected, or the `anthropic` package is missing |
 
 ## Tests
 

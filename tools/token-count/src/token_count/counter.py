@@ -9,6 +9,7 @@ code.
 from __future__ import annotations
 
 import os
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +24,9 @@ SKIP_DIRS = {
     ".mypy_cache", ".pytest_cache", ".ruff_cache", "dist", "build", "target",
     ".next", ".nuxt", ".tox", ".eggs", ".sdlc",
 }
+
+AUTH_FAILED = "authentication failed"
+AUTH_ABORTED = "skipped after authentication failure"
 
 SKIP_SUFFIXES = {".pyc", ".pyo", ".so", ".dylib", ".dll", ".a", ".o", ".class"}
 
@@ -46,6 +50,20 @@ class FileCount:
 
 class CredentialsMissing(RuntimeError):
     """No usable Anthropic credentials were found."""
+
+
+def is_auth_error(exc: BaseException) -> bool:
+    """Whether a failure means the credentials are bad, not the input.
+
+    Bad credentials fail identically for every file, so this is the difference
+    between one clear message and one doomed request per file.
+    """
+    if type(exc).__name__ in ("AuthenticationError", "PermissionDeniedError"):
+        return True
+    status = getattr(exc, "status_code", None)
+    if status in (401, 403):
+        return True
+    return "authentication_error" in str(exc)
 
 
 def api_counter() -> TokenCounter:
@@ -162,13 +180,22 @@ def count_paths(
     if not paths:
         return []
 
+    # Once credentials are rejected, every remaining file would fail the same
+    # way; stop rather than firing a doomed request per file.
+    auth_failed = threading.Event()
+
     def one(path: Path) -> FileCount:
+        if auth_failed.is_set():
+            return FileCount(path, 0, error=AUTH_ABORTED)
         text = readable_text(path)
         if text is None:
             return FileCount(path, 0, error="not text")
         try:
             return FileCount(path, count_text(text, model, counter))
         except Exception as exc:
+            if is_auth_error(exc):
+                auth_failed.set()
+                return FileCount(path, 0, error=AUTH_FAILED)
             return FileCount(path, 0, error=_short_error(exc))
 
     results: list[FileCount] = []

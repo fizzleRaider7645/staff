@@ -94,3 +94,33 @@ def test_binary_only_directory_says_so(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "no text to count" in out
     assert "2 binary files skipped" in out
+
+
+def test_bad_credentials_reported_once_not_per_file(tmp_path, capsys, monkeypatch):
+    class AuthenticationError(Exception):
+        status_code = 401
+
+    def always_401(text, model):
+        raise AuthenticationError("Error code: 401 - authentication_error")
+
+    monkeypatch.setattr(cli, "api_counter", lambda: always_401)
+    for i in range(4):
+        (tmp_path / f"f{i}.md").write_text("one two")
+
+    assert cli.main([str(tmp_path)]) == 2
+    err = capsys.readouterr().err
+    assert "rejected these credentials" in err
+    assert err.count("rejected these credentials") == 1
+
+
+def test_bad_credentials_on_stdin(monkeypatch, capsys):
+    class AuthenticationError(Exception):
+        status_code = 401
+
+    monkeypatch.setattr("sys.stdin", __import__("io").StringIO("hello"))
+    monkeypatch.setattr(
+        cli, "api_counter",
+        lambda: (lambda t, m: (_ for _ in ()).throw(AuthenticationError("401 authentication_error"))),
+    )
+    assert cli.main([]) == 2
+    assert "rejected these credentials" in capsys.readouterr().err
