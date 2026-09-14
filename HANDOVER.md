@@ -1,42 +1,76 @@
-# Handover
+# Handover — 2026-09-13
 
-## Summary
+`main` @ `412371f`, pushed, clean tree. CI green except shellcheck, which is
+`continue-on-error` and stays red until its backlog is triaged.
 
-`add_source` ingests external repos as read-only dependencies and exposes their skills/agents/tools so they're immediately usable via `staff install` — without requiring the external repo to have a `staff.json`.
+## State
 
-Implemented behavior:
+| | |
+|---|---|
+| Commands | `list, add_source, update_source, remove_source, install, uninstall, build, test, init, doctor` |
+| Tests | 206 CLI (`./tests/run.sh`), 154 sdlc, 38 token-count |
+| CI | CLI suite on Linux **and macOS** (macOS ships bash 3.2), plus `staff test --all` |
+| Projects | `staff` (skill), `sdlc` (harness), `token-count` (tool) |
+| Empty categories | `mcps/`, `agents/` |
+| Sources | `anthropic_skills` -> `~/Projects/skills`, 19 skills |
 
-- `staff add_source <name> <path>` registers external repos under `sources/<name>/`
-- `sources/<name>/repo` is a plain symlink to the external repo — **never written to**
-- Discovery has two tiers:
-  1. **Native staff.json**: repo root or `staff.json` one level under a category dir (`skills/`, `agents/`, `mcps/`, `tools/`, `harnesses/`, `lib/`) — unchanged from the original design.
-  2. **Foreign-format recognition** (new): for projects with no `staff.json`, staff recognizes each category's own native convention — `SKILL.md` for skills (repo root or `skills/*/SKILL.md`), and flat `<name>.md` files with `name:`/`description:` frontmatter under `agents/` for agents. A `staff.json` is synthesized for each and cached under `sources/<name>/generated/<category>/<derived-name>/staff.json`, with a `content_root` field pointing back into the read-only `repo/` symlink so the existing `cmd_install.sh` installers (`install_skill`, `install_agent`, `install_tool`) can find the real content file unchanged.
-- mcp/tool foreign-format auto-discovery is **not implemented** — no single unambiguous native-format signal exists for those categories the way `SKILL.md`/agent-frontmatter does for skills/agents. Repos that already ship real `staff.json` for MCPs/tools still work via tier 1.
-- Registry entries carry two new passthrough fields: `synthesized` (bool) and `native_format` (`"staff" | "claude-skill" | "claude-agent"`), defaulted for full backward compatibility with existing manifests.
-- `staff list --sourced true` shows sourced projects (native or synthesized alike).
+There is **no registry file**. `registry_projects()` walks the tree on every
+invocation (~113ms for 21 projects). `staff registry rebuild` no longer exists.
+Manifests carry no `category` field — the directory is the category, and
+`install.type` says how a project installs.
 
-## Files Changed
+## What this session changed
 
-- `lib/staff/cmd_add_source.sh` — symlink now created before discovery (so `content_root` paths are stable); discovery extended with `discover_foreign_manifests`; per-project `source.toml` blocks carry `synthesized`/`native_format`; cleanup (`rm -rf "$source_dir"`) added to every error path once the bundle directory exists.
-- `lib/staff/cmd_registry.sh` — `scan_sourced_projects` also walks `sources/*/generated/**/staff.json`; `add_registry_entry` passes through `synthesized`/`native_format`.
-- `lib/staff/cmd_install.sh` — `install_skill`, `install_agent`, `install_tool` resolve `content_root` from the manifest (falling back to `project_path`) before locating the real content file.
-- `lib/staff/frontmatter.sh` (new) — best-effort YAML frontmatter field extractor (`frontmatter_field`, `frontmatter_has_name_and_description`); good enough for registry descriptions, not a full YAML parser.
-- `lib/staff/source_recognizers.sh` (new) — `recognize_skills`, `recognize_agents`, `synthesize_manifest`.
-- `README.md`, `skills/staff/SKILL.md` — docs updated to describe native-format recognition and the read-only guarantee.
+Nine bugs, all silent, all in paths nothing had exercised:
 
-## Status
+- **Skills installed as a lone `SKILL.md`** — 14 of 19 lost every supporting file
+  (`claude-api` lost 88). The whole skill directory is now symlinked.
+- **Every agent symlinked to the same `~/.claude/agents/agent.md`**, so a second
+  install clobbered the first and uninstalling either destroyed the survivor.
+- **MCP servers written to `settings.json`**, which Claude Code does not read for
+  server definitions. Now `~/.claude.json` (user) / `.mcp.json` (project).
+- **`registry rebuild` reported success while emptying the index** when a source
+  symlink broke.
+- **YAML frontmatter parsing** stripped quotes unconditionally and left `\"`
+  escapes literal, corrupting three descriptions.
+- **`doctor`** mis-handled multi-scope records and counted "staff not in PATH" as
+  an issue, which is why CI failed while the suite passed locally.
+- **Templates** produced projects that could not build or install (`npm run build`
+  without `npm install`; `init tool` defaulting to a language with no template;
+  `bin/run` scaffolded non-executable).
+- **`eval` on manifest `build.command`** — a sourced repo could run arbitrary code
+  on `staff install`. Now `bash -c`, and a sourced project's build/test command is
+  refused unless `--allow-build` / `--allow-test` is passed.
 
-Fully implemented and verified end to end against the real https://github.com/anthropics/skills repo:
+Then simplification: `cmd_registry.sh` (202 lines), both index files, the
+`category` field, and `registry rebuild` all deleted.
 
-- `staff add_source anthropic_skills /path/to/anthropics/skills` discovered and installed all 19 skills (no `staff.json` in that repo at all).
-- `git -C /path/to/anthropics/skills status` confirmed zero writes to the source repo.
-- Registry entries show `synthesized: true`, `native_format: "claude-skill"`, correct `content_root`.
-- Installed symlinks (`~/.claude/skills/pdf/SKILL.md`) resolve through `sources/anthropic_skills/repo/...` to the real file.
-- Re-running `staff registry rebuild` produces identical output (modulo timestamp) — the discovery/synthesis step only runs at `add_source` time, not on every rebuild.
-- A synthetic agent fixture (flat `agents/<name>.md` with frontmatter) was also verified end to end through `add_source` → `install` → symlink resolution, then cleaned up.
+## Next
 
-## Possible Follow-ups (not started)
+1. **`staff publish`** — export a project as a Claude Code plugin
+   (`.claude-plugin/plugin.json` + repo `marketplace.json`). Staff is the inner
+   dev loop; plugins are distribution. Without an exit path staff competes with
+   the plugin system instead of feeding it. `token-count` is ready to package.
+2. **Five duplicated skills** — `pdf`, `docx`, `pptx`, `xlsx`, `skill-creator` are
+   installed by both staff and the `anthropic-skills` plugin. Choose one source
+   each; add a `doctor` check for collisions.
+3. **A real MCP and a real agent** — those categories are still empty, and every
+   bug above lived in an unexercised path.
+4. **`staff promote`** — the repo's own "promote on reuse" principle has no command.
+5. **`staff add_source <git-url>`** — a source must already be cloned today.
+6. Leftovers: `CATEGORIES` includes `lib`, which is also the CLI's own
+   `lib/staff/`; triage shellcheck so it can gate; SDLC harness gaps (prompt via
+   argv near ARG_MAX, no retry/backoff, hardcoded `max_tokens`, OpenAI tiers a
+   generation behind the Claude ones).
 
-- mcp/tool foreign-format recognition, if a real use case shows up — deliberately deferred; no reliable single-file signal was found for either category.
-- Surfacing `native_format`/`synthesized` in `staff list`'s table output (currently only in `registry.json`).
-- A manual-override path in `source.toml` for hand-adding an mcp/tool project to an already-registered source, if that need materializes.
+## Traps
+
+- A passing suite is not evidence — fixtures inherit the code's assumptions. Every
+  skill fixture was a single `SKILL.md`, exactly the installer's wrong assumption,
+  so the suite proved the bug worked. Use what a change produces.
+- When adding a regression test, reintroduce the bug and confirm it fails.
+- `gh` is not installed — no PRs from this machine. The GitHub REST API works
+  unauthenticated for reads; Actions logs need admin auth.
+- `.env` holds `ANTHROPIC_API_KEY` (gitignored). It must be **workspace-scoped** —
+  an org-level key needs an `anthropic-workspace-id` header. No `ant` CLI here.
+- Commit straight to `main`; no feature branches.
