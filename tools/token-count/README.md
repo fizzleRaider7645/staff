@@ -5,17 +5,17 @@ model's context window they take.
 
 ```
 $ token-count skills/staff lib/staff --top 6
-   5,473  26.1%  lib/staff/cmd_add_source.sh
-   2,454  11.7%  lib/staff/cmd_install.sh
-   2,266  10.8%  lib/staff/_common.sh
-   1,625   7.8%  lib/staff/cmd_doctor.sh
-   1,620   7.7%  skills/staff/SKILL.md
-   1,612   7.7%  lib/staff/cmd_init.sh
-   5,889  28.1%  (8 more files)
+   9,448  26.3%  lib/staff/cmd_add_source.sh
+   4,285  11.9%  lib/staff/cmd_install.sh
+   4,129  11.5%  lib/staff/_common.sh
+   2,847   7.9%  lib/staff/cmd_init.sh
+   2,783   7.7%  lib/staff/cmd_doctor.sh
+   2,315   6.4%  skills/staff/SKILL.md
+  10,154  28.2%  (8 more files)
   --------------
-  20,939         14 files
+  35,961         14 files
 
-  2.1% of claude-opus-5 input context (1,000,000 tokens)
+  3.6% of claude-opus-5 input context (1,000,000 tokens)
 ```
 
 ## Why the API and not a local tokenizer
@@ -24,6 +24,9 @@ Token counts are model-specific, and there is no accurate offline tokenizer for
 Claude. `tiktoken` is OpenAI's — it undercounts Claude by roughly 15–20% on
 prose and considerably more on code. So counts come from the Anthropic API's
 `count_tokens` endpoint, one call per file.
+
+For scale: a chars/4 estimate puts the tree above at 20,939 tokens. The real
+count is 35,961 — off by 72%, on shell and markdown.
 
 That means the tool needs credentials, and that counting a large tree costs a
 request per file. Files that are empty or whitespace-only skip the round trip.
