@@ -1,87 +1,79 @@
-# Handover — 2026-09-13 (evening)
+# Handover — 2026-09-16
 
-`main` @ `53ae190` plus this handover commit, pushed, clean tree. CI green except
-shellcheck, which is `continue-on-error` and stays red until its backlog is
-triaged.
+`main` @ the "Publish ledger as a plugin" commit, pushed, clean tree. CI: CLI
+suite on Linux and macOS plus `staff test --all`; shellcheck advisory and red.
 
 ## State
 
 | | |
 |---|---|
 | Commands | `list, add_source, update_source, remove_source, install, uninstall, build, test, init, publish, doctor` |
-| Tests | 268 CLI (`./tests/run.sh`), 154 sdlc, 38 token-count |
-| CI | CLI suite on Linux **and macOS** (bash 3.2), plus `staff test --all` |
-| Projects | `staff` (skill), `sdlc` (harness), `token-count` (tool) |
-| Published | `token-count` -> `plugins/token-count/`, listed in `.claude-plugin/marketplace.json` as `token-count@staff` |
-| Empty categories | `mcps/`, `agents/` |
-| Sources | `anthropic_skills` -> `~/Projects/skills`, 19 skills |
+| Tests | 292 CLI (`./tests/run.sh`), 154 sdlc, 38 token-count, 118 ledger |
+| Projects | `staff` (skill), `sdlc` (harness), `token-count` (tool), **`ledger` (mcp)** |
+| Published | `token-count`, `ledger` in `.claude-plugin/marketplace.json` |
+| Empty categories | `agents/` |
+| Installed here | `ledger` at user scope (`~/.claude.json`, `~/.local/bin/ledger`) and desktop scope (`claude_desktop_config.json`, Desktop not yet relaunched) |
 
-There is **no registry file**; `registry_projects()` walks the tree on every
-invocation. Manifests carry no `category` field. `plugins/` is not a category,
-so published copies are never discovered as projects.
+## ledger — what exists
 
-## What this session changed
+`mcps/ledger`: SimpleFIN Bridge → `~/.ledger/ledger.db`; stdlib CLI (sync,
+categorize, rules, report, subscriptions, insights, goals, dashboard, export,
+schedule, doctor); MCP server on `mcp` v2 (`MCPServer`, stdio) with 8 read
+tools, 8 write tools and a `ledger://summary` resource; `skill/SKILL.md`;
+launchd daily job; opt-in Cowork export. README in the project.
 
-**`staff publish <project>`** — the exit path. staff is the inner loop (install
-links the working copy into `~/.claude`); a plugin is distribution. publish
-snapshots a project into `plugins/<name>/` in the plugin loader's layout and
-upserts its entry in `.claude-plugin/marketplace.json`, which makes this repo a
-Claude Code marketplace:
+Verified on the real thing, not only the suite:
 
-```
-/plugin marketplace add fizzleRaider7645/staff
-/plugin install token-count@staff
-```
+- The live test claims a fresh demo token from the bridge's developer page
+  (bound to that page's session cookie, and the bridge refuses urllib's
+  default user agent) and synced 3 demo accounts / 469 transactions through
+  the real CLI. That run surfaced the bridge's 45-day window guidance and
+  that pending rows come back in every window; both are handled.
+- An isolated Claude Code session (`claude -p --mcp-config … --strict-mcp-config`)
+  answered spending, top category, net worth and insights through the server
+  with figures matching the demo data.
+- `claude plugin validate --strict` passes on the plugin and the marketplace;
+  the plugin installs into a scratch `CLAUDE_CONFIG_DIR` with skill and MCP
+  server recognized.
 
-- skill -> `skills/<name>/` (whole directory); agent -> `agents/<name>.md`;
-  mcp -> project + `.mcp.json` with `${PROJECT_ROOT}` rewritten to
-  `${CLAUDE_PLUGIN_ROOT}`; tool -> project + `skills/<name>/` from its
-  `skill/SKILL.md` (plugins have no binary component, so the skill is what makes
-  Claude reach for it; publish generates a thin one if the project has none).
-- Copy, not link. Symlinks dereferenced; `.git`, `node_modules`, `__pycache__`,
-  `*.egg-info`, caches excluded. Staged beside the target and swapped in.
-- Same `--allow-build` trust gate as install for sourced projects.
-- Warns when the snapshot holds files `.gitignore` would keep out of a clone.
-- Runs `claude plugin validate` when `claude` is on PATH.
-- `doctor` reports a published plugin whose version differs from its project,
-  or that is missing from the marketplace.
-- Only the plugin's own marketplace entry is rewritten; the marketplace's name,
-  description and owner are edited by hand and survive.
+## What Doug has to do himself
 
-Verified against the real loader, not just the suite: `claude plugin validate
---strict` passes on both manifests; the plugin installs into an isolated
-`CLAUDE_CONFIG_DIR`; its binary counts real files from the install cache; a
-`claude -p` session with only that plugin picked the skill and reported the
-same count (1,799 tokens for CLAUDE.md).
+1. Sign up at SimpleFIN Bridge, connect banks, create a setup token.
+2. `ledger setup` (paste the token; Keychain stores the access URL), then
+   `ledger sync`, then `ledger schedule install`.
+3. Quit and relaunch Claude Desktop so the desktop registration loads.
+4. **Cowork check** (the open question): ask a Cowork session a money question.
+   If Cowork cannot reach the local server, run
+   `ledger schedule install --export` so `~/Documents/Claude/ledger/summary.json`
+   and the dashboard refresh daily.
 
 ## Next
 
-1. **Resolve the five duplicated skills** — `pdf`, `docx`, `pptx`, `xlsx`,
-   `skill-creator` are installed by both staff and the `anthropic-skills`
-   plugin. Choose one source each; add a `doctor` check for collisions.
-2. **A real MCP and a real agent.** Both categories are empty; install and
-   publish for them are fixture-tested only. An MCP will also hit the
-   `.gitignore` `dist/` trap below — decide whether plugins commit build output
-   or run from source.
-3. **`staff promote`** — the repo's "promote on reuse" principle has no command.
-4. **`staff add_source <git-url>`** — a source must already be cloned today.
-5. **publish for multiple projects** — `staff publish --all`, or one plugin
-   bundling several projects, once there is more than one thing to ship.
-6. Leftovers: `CATEGORIES` includes `lib`, which is also the CLI's own
-   `lib/staff/`; triage shellcheck so it can gate; SDLC harness gaps (prompt via
-   argv near ARG_MAX, no retry/backoff, hardcoded `max_tokens`).
+1. **Cowork visibility of local MCP servers** — unverified; see above.
+2. **The published plugin's server needs an interpreter with the `mcp` SDK.**
+   `plugins/ledger` has no venv (excluded on purpose); `bin/ledger-mcp` falls
+   back to `python3`, which lacks the SDK, so the plugin's MCP server fails
+   until the user runs the build command or sets `LEDGER_PYTHON`. Options: a
+   `uvx`/`pipx` launcher, vendoring, or a post-install hook.
+3. **Rocket Money CSV import** (Phase 5 in the plan) once an export exists;
+   the design is in the plan file.
+4. **Resolve the five duplicated skills** (`pdf`, `docx`, `pptx`, `xlsx`,
+   `skill-creator`) installed by both staff and the `anthropic-skills` plugin.
+5. **A real agent**; `agents/` is still empty.
+6. Leftovers: `staff promote`, `staff add_source <git-url>`, `CATEGORIES`
+   includes `lib`, shellcheck triage, SDLC harness gaps.
 
 ## Traps
 
-- A passing suite is not evidence — fixtures inherit the code's assumptions.
-  Use what a change produces. For publish that means the bundled binary below.
-- When adding a regression test, reintroduce the bug and confirm it fails.
-- `claude` is **not on PATH** here, but the desktop app bundles it:
+- A passing suite is not evidence. Use what a change produces; for ledger
+  that means the demo bridge (`LEDGER_LIVE=1`) and the bundled `claude`.
+- `grep` in this shell is aliased to a tool that skips binary files; use
+  `/usr/bin/grep -a` when checking a database for leaked text.
+- `claude` is not on PATH; the desktop app bundles it at
   `~/Library/Application Support/Claude/claude-code/<version>/claude.app/Contents/MacOS/claude`.
-  Set `CLAUDE_CONFIG_DIR` to a scratch directory before `plugin marketplace add`
-  / `plugin install` so experiments stay out of the real `~/.claude`.
-- `.gitignore` excludes `dist/` and `build/` repo-wide. A plugin that needs
-  built output will be incomplete in a marketplace clone; publish warns.
-- `gh` is not installed — no PRs from this machine.
-- `.env` holds `ANTHROPIC_API_KEY` (gitignored); it must be workspace-scoped.
-- Commit straight to `main`; no feature branches.
+  Use a scratch `CLAUDE_CONFIG_DIR` for experiments.
+- The SimpleFIN demo token is single-use and session-bound; the test
+  scrapes a fresh one each run.
+- `.gitignore` excludes `dist/` and `build/` repo-wide; a plugin needing
+  built output will be incomplete in a clone (publish warns).
+- `gh` is not installed; commit straight to `main`.
