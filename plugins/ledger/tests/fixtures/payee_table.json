@@ -1,0 +1,86 @@
+[
+  [
+    "SQ *BLUE BOTTLE 0421 SAN FRANCISCO CA",
+    "BLUE BOTTLE"
+  ],
+  [
+    "SQ *BLUE BOTTLE 0422 SAN FRANCISCO CA",
+    "BLUE BOTTLE"
+  ],
+  [
+    "TST* JOES PIZZA #12 BROOKLYN NY",
+    "JOES PIZZA"
+  ],
+  [
+    "NETFLIX.COM 866-579-7172 CA",
+    "netflix"
+  ],
+  [
+    "PAYPAL *NETFLIX",
+    "netflix"
+  ],
+  [
+    "Netflix.com",
+    "netflix"
+  ],
+  [
+    "PAYPAL *SPOTIFY",
+    "spotify"
+  ],
+  [
+    "SPOTIFY USA 877-778-1161 NY",
+    "spotify"
+  ],
+  [
+    "AMZN Mktp US*2K4X93HL1 Amzn.com/bill WA",
+    "amazon"
+  ],
+  [
+    "AMAZON PRIME*1A2B3C4D5 AMZN.COM/BILL WA",
+    "amazon-prime"
+  ],
+  [
+    "PURCHASE AUTHORIZED ON 09/03 TRADER JOE'S #123 OAKLAND CA CARD 1234",
+    "TRADER JOE'S"
+  ],
+  [
+    "RECURRING PAYMENT AUTHORIZED ON 09/01 GOOGLE *Google One g.co/helppay# CA",
+    "google-one"
+  ],
+  [
+    "UBER *TRIP HELP.UBER.COM CA",
+    "UBER TRIP"
+  ],
+  [
+    "CHECKCARD 0912 STARBUCKS STORE 05421 SEATTLE WA 24692166",
+    "STARBUCKS STORE"
+  ],
+  [
+    "APLPAY WHOLEFDS MKT 10321 PALO ALTO CA",
+    "WHOLEFDS MKT"
+  ],
+  [
+    "Zelle payment to Jane Doe JPM99A0ABCDE",
+    "ZELLE JANE DOE"
+  ],
+  [
+    "PG&E EZ-PAY 800-743-5000 CA",
+    "PG&E EZ-PAY"
+  ],
+  [
+    "APPLE.COM/BILL 866-712-7753 CA",
+    "icloud"
+  ],
+  [
+    "",
+    ""
+  ],
+  [
+    "OPENAI *CHATGPT SUBSCR OPENAI.COM CA",
+    "openai"
+  ],
+  [
+    "UBER *EATS PENDING SAN FRANCISCO CA",
+    "UBER EATS PENDING"
+  ]
+]

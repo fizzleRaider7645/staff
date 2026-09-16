@@ -20,6 +20,23 @@
         "context",
         "cli"
       ]
+    },
+    {
+      "name": "ledger",
+      "description": "Personal budget tracker: SimpleFIN sync into local SQLite, insights, dashboard, and an MCP server for Claude",
+      "version": "0.1.0",
+      "source": "./plugins/ledger",
+      "author": {
+        "name": "Douglas Uretsky"
+      },
+      "homepage": "https://github.com/fizzleRaider7645/staff/tree/main/mcps/ledger",
+      "keywords": [
+        "finance",
+        "budget",
+        "simplefin",
+        "mcp",
+        "cli"
+      ]
     }
   ],
   "description": "AI tooling from the staff monorepo: skills, agents, MCP servers and command-line tools, packaged as Claude Code plugins"

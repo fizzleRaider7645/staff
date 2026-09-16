@@ -1,0 +1,23 @@
+{
+  "name": "ledger",
+  "language": "python",
+  "description": "Personal budget tracker: SimpleFIN sync into local SQLite, insights, dashboard, and an MCP server for Claude",
+  "status": "draft",
+  "version": "0.1.0",
+  "build": {
+    "command": "python3 -m venv .venv && .venv/bin/pip install -q -e '.[mcp,test]'"
+  },
+  "install": {
+    "type": "mcp",
+    "build_first": true,
+    "binary": "bin/ledger",
+    "mcp_config": {
+      "command": "${PROJECT_ROOT}/bin/ledger-mcp",
+      "args": []
+    }
+  },
+  "tags": ["finance", "budget", "simplefin", "mcp", "cli"],
+  "test": {
+    "command": "if [ -x .venv/bin/python ]; then .venv/bin/python -m pytest -q; else python3 -m pytest -q; fi"
+  }
+}

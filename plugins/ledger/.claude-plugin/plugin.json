@@ -1,0 +1,17 @@
+{
+  "name": "ledger",
+  "version": "0.1.0",
+  "description": "Personal budget tracker: SimpleFIN sync into local SQLite, insights, dashboard, and an MCP server for Claude",
+  "author": {
+    "name": "Douglas Uretsky"
+  },
+  "homepage": "https://github.com/fizzleRaider7645/staff/tree/main/mcps/ledger",
+  "repository": "https://github.com/fizzleRaider7645/staff",
+  "keywords": [
+    "finance",
+    "budget",
+    "simplefin",
+    "mcp",
+    "cli"
+  ]
+}
