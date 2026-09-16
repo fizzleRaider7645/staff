@@ -11,7 +11,7 @@ cmd_uninstall() {
 ${BOLD}staff uninstall${RESET} — remove an installed project
 
 ${BOLD}Usage:${RESET}
-  staff uninstall <project> [--scope user|project]
+  staff uninstall <project> [--scope user|project|desktop]
 
 Reverses the installation by removing symlinks, config entries, or wrapper
 scripts. Without --scope, every scope the project is installed at is removed.
@@ -31,13 +31,13 @@ EOF
   done
 
   if [ -z "$project_name" ]; then
-    error "Usage: staff uninstall <project> [--scope user|project]"
+    error "Usage: staff uninstall <project> [--scope user|project|desktop]"
     return 1
   fi
 
   if [ -n "$scope" ]; then
     case "$scope" in
-      user|project) ;;
+      user|project|desktop) ;;
       *) error "Invalid scope: $scope (must be user or project)"; return 1 ;;
     esac
   fi

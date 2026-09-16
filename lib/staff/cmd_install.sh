@@ -15,17 +15,20 @@ ${BOLD}Usage:${RESET}
   staff install <project> [options]
 
 ${BOLD}Options:${RESET}
-  --scope user|project   Where to install (default: user)
+  --scope user|project|desktop   Where to install (default: user)
                          user: ~/.claude/ (global)
                          project: ./.claude/ (current directory)
+                         desktop: Claude Desktop / Cowork (MCP servers only)
   --allow-build          Permit running a build command declared by a sourced
                          (external) project. Refused by default.
   -h, --help             Show this help
 
 ${BOLD}What happens by category:${RESET}
   skill    Symlinks into ~/.claude/skills/ (or .claude/skills/)
-  mcp      Adds an mcpServers entry to ~/.claude.json (user)
-           or .mcp.json in the current directory (project)
+  mcp      Adds an mcpServers entry to ~/.claude.json (user),
+           .mcp.json in the current directory (project), or Claude
+           Desktop's claude_desktop_config.json (desktop). A project that
+           also declares install.binary gets a ~/.local/bin wrapper.
   agent    Symlinks into ~/.claude/agents/ (or .claude/agents/)
   tool     Creates a wrapper script in ~/.local/bin/
 
@@ -44,7 +47,7 @@ EOF
   done
 
   if [ -z "$project_name" ]; then
-    error "Usage: staff install <project> [--scope user|project]"
+    error "Usage: staff install <project> [--scope user|project|desktop]"
     return 1
   fi
 
@@ -71,6 +74,14 @@ EOF
 
   local install_type
   install_type=$(jq -r '.install.type' "$manifest")
+
+  case "$scope" in
+    user|project) ;;
+    desktop)
+      [ "$install_type" = "mcp" ] || die "--scope desktop applies to MCP servers only; '$project_name' installs as $install_type"
+      ;;
+    *) die "Unknown scope: $scope (use user, project or desktop)" ;;
+  esac
 
   case "$install_type" in
     skill)  install_skill  "$project_name" "$abs_project_path" "$manifest" "$scope" ;;
@@ -173,11 +184,11 @@ install_mcp() {
   # .mcp.json at the project root (project scope). settings.json only carries
   # enable/disable toggles, so definitions written there are ignored.
   local config_file
-  if [ "$scope" = "user" ]; then
-    config_file="$HOME/.claude.json"
-  else
-    config_file="$(pwd)/.mcp.json"
-  fi
+  case "$scope" in
+    user)    config_file="$HOME/.claude.json" ;;
+    project) config_file="$(pwd)/.mcp.json" ;;
+    desktop) config_file="$(claude_desktop_config_path)" ;;
+  esac
 
   mkdir -p "$(dirname "$config_file")"
 
@@ -191,19 +202,46 @@ install_mcp() {
 
   backup_config "$config_file"
 
-  # Build MCP config with resolved paths
   local mcp_config
-  mcp_config=$(jq --arg root "$project_path" '
-    .install.mcp_config |
-    .args = (.args // [] | map(gsub("\\$\\{PROJECT_ROOT\\}"; $root)))
-  ' "$manifest")
+  mcp_config=$(mcp_config_resolved "$manifest" "$project_path")
 
   jq --arg name "$name" --argjson config "$mcp_config" '
     .mcpServers[$name] = $config
   ' "$config_file" > "${config_file}.tmp" && mv "${config_file}.tmp" "$config_file"
 
-  record_installation "$name" "mcp" "$scope" "$config_file" "" "mcpServers.$name"
+  # An MCP project can carry a CLI too (ledger does). The wrapper is written
+  # on every scope but recorded on the user-scope record only, so removing a
+  # second scope does not delete a wrapper the first still relies on.
+  local wrapper=""
+  local binary
+  binary=$(jq -r '.install.binary // ""' "$manifest")
+  if [ -n "$binary" ]; then
+    [ -f "$project_path/$binary" ] || die "Binary not found: $project_path/$binary"
+    wrapper=$(write_tool_wrapper "$name" "$project_path" "$binary")
+    [ "$scope" = "user" ] || wrapper=""
+  fi
+
+  record_installation "$name" "mcp" "$scope" "$config_file" "$wrapper" "mcpServers.$name"
   ok "Installed MCP '$name' into $config_file"
+  [ -n "$binary" ] && ok "Installed CLI '$name' -> $HOME/.local/bin/$name"
+  if [ "$scope" = "desktop" ]; then
+    info "Quit and relaunch Claude Desktop to load it"
+  fi
+  return 0
+}
+
+# ~/.local/bin/<name> exec'ing the project's binary in place. Prints the path.
+write_tool_wrapper() {
+  local name="$1" project_path="$2" binary="$3"
+  local bin_dir="$HOME/.local/bin"
+  mkdir -p "$bin_dir"
+  local wrapper="$bin_dir/$name"
+  cat > "$wrapper" <<WRAPPER
+#!/bin/sh
+exec "$project_path/$binary" "\$@"
+WRAPPER
+  chmod +x "$wrapper"
+  echo "$wrapper"
 }
 
 install_agent() {
@@ -269,17 +307,10 @@ install_tool() {
     die "No binary specified in staff.json install.binary"
   fi
 
-  local bin_dir="$HOME/.local/bin"
-  mkdir -p "$bin_dir"
+  local wrapper
+  wrapper=$(write_tool_wrapper "$name" "$project_path" "$binary")
 
-  local wrapper="$bin_dir/$name"
-  cat > "$wrapper" <<WRAPPER
-#!/bin/sh
-exec "$project_path/$binary" "\$@"
-WRAPPER
-  chmod +x "$wrapper"
-
-  record_installation "$name" "tool" "user" "$bin_dir" "$wrapper"
+  record_installation "$name" "tool" "user" "$HOME/.local/bin" "$wrapper"
   ok "Installed tool '$name' -> $wrapper"
 }
 

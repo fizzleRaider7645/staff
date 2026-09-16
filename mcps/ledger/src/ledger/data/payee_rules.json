@@ -1,0 +1,142 @@
+{
+  "strip": [
+    {
+      "pattern": "^(?:PURCHASE AUTHORIZED ON \\d{1,2}/\\d{1,2}|RECURRING PAYMENT AUTHORIZED ON \\d{1,2}/\\d{1,2}|RECURRING PAYMENT|DEBIT CARD PURCHASE|CHECKCARD|CHECK CARD|POS DEBIT|POS PURCHASE|VISA DDA PUR|ACH DEBIT|ACH CREDIT|ELECTRONIC WITHDRAWAL|ONLINE PAYMENT|DIRECT DEBIT|WEB PMT|PAYMENT TO|PAYMENT FROM)\\s*",
+      "replace": ""
+    },
+    {
+      "pattern": "^(?:SQ|TST|SP|PP|PY|PAYPAL|APLPAY|APPLE PAY|GOOGLE|AMZN MKTP|AMZN|AMAZON MKTPL)\\s*\\*?\\s*",
+      "replace": ""
+    },
+    {
+      "pattern": "\\b[A-Z0-9.-]+\\.(?:COM|NET|ORG|CO|IO|US|TV|AI)(?:/[A-Z0-9./-]*)?(?![A-Z0-9])",
+      "replace": " "
+    },
+    {
+      "pattern": "\\bHTTPS?://\\S+|\\bWWW\\.\\S+",
+      "replace": " "
+    },
+    {
+      "pattern": "\\b\\d{1,2}/\\d{1,2}(?:/\\d{2,4})?\\b",
+      "replace": " "
+    },
+    {
+      "pattern": "\\b\\d{3}[-. ]\\d{3}[-. ]\\d{4}\\b",
+      "replace": " "
+    },
+    {
+      "pattern": "\\b\\d{3}[-. ]\\d{4}\\b",
+      "replace": " "
+    },
+    {
+      "pattern": "\\bX{2,}\\d{2,}\\b|\\*{2,}\\d+",
+      "replace": " "
+    },
+    {
+      "pattern": "#\\s*\\d+",
+      "replace": " "
+    },
+    {
+      "pattern": "\\*[A-Z0-9]*\\d[A-Z0-9]*",
+      "replace": " "
+    },
+    {
+      "pattern": "\\b\\d{4,}\\b",
+      "replace": " "
+    },
+    {
+      "pattern": "\\b[A-Z]*\\d+[A-Z0-9]*\\b",
+      "replace": " "
+    },
+    {
+      "pattern": "\\s+CARD\\s*\\d*\\s*$",
+      "replace": ""
+    },
+    {
+      "pattern": "\\bZELLE PAYMENT (?:TO|FROM)\\b",
+      "replace": "ZELLE"
+    }
+  ],
+  "cities": [
+    "SAN FRANCISCO",
+    "NEW YORK",
+    "LOS ANGELES",
+    "SAN DIEGO",
+    "SAN JOSE",
+    "LAS VEGAS",
+    "SANTA MONICA",
+    "SANTA CLARA",
+    "PALO ALTO",
+    "MOUNTAIN VIEW",
+    "REDWOOD CITY",
+    "MENLO PARK",
+    "LONG BEACH",
+    "SALT LAKE",
+    "SALT LAKE CITY",
+    "KANSAS CITY",
+    "OKLAHOMA CITY",
+    "ST LOUIS",
+    "ST PAUL",
+    "FORT WORTH",
+    "EL PASO",
+    "SANTA ROSA",
+    "WALNUT CREEK",
+    "SAN MATEO",
+    "NEW ORLEANS",
+    "ANN ARBOR",
+    "LITTLE ROCK"
+  ],
+  "states": [
+    "AL",
+    "AK",
+    "AZ",
+    "AR",
+    "CA",
+    "CO",
+    "CT",
+    "DE",
+    "DC",
+    "FL",
+    "GA",
+    "HI",
+    "ID",
+    "IL",
+    "IN",
+    "IA",
+    "KS",
+    "KY",
+    "LA",
+    "ME",
+    "MD",
+    "MA",
+    "MI",
+    "MN",
+    "MS",
+    "MO",
+    "MT",
+    "NE",
+    "NV",
+    "NH",
+    "NJ",
+    "NM",
+    "NY",
+    "NC",
+    "ND",
+    "OH",
+    "OK",
+    "OR",
+    "PA",
+    "RI",
+    "SC",
+    "SD",
+    "TN",
+    "TX",
+    "UT",
+    "VT",
+    "VA",
+    "WA",
+    "WV",
+    "WI",
+    "WY"
+  ]
+}

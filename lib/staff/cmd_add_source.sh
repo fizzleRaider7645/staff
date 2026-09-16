@@ -30,7 +30,7 @@ ${BOLD}Arguments:${RESET}
   path           Path to an external project directory or a source repo root
 
 ${BOLD}Options:${RESET}
-  --scope user|project   Install scope to use when auto-installing (default: user)
+  --scope user|project|desktop   Install scope when auto-installing (default: user)
   --no-install           Register the source without installing it
   -h, --help             Show this help
 
@@ -67,12 +67,12 @@ EOF
   done
 
   if [ -z "$source_name" ] || [ -z "$source_path" ]; then
-    error "Usage: staff add_source <repo-name> <path> [--scope user|project] [--no-install]"
+    error "Usage: staff add_source <repo-name> <path> [--scope user|project|desktop] [--no-install]"
     return 1
   fi
 
   case "$install_scope" in
-    user|project) ;;
+    user|project|desktop) ;;
     *)
       error "Invalid scope: $install_scope (must be user or project)"
       return 1

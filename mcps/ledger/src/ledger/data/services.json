@@ -1,0 +1,766 @@
+[
+  {
+    "id": "netflix",
+    "name": "Netflix",
+    "tags": [
+      "streaming"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "NETFLIX.COM"
+    ]
+  },
+  {
+    "id": "hulu",
+    "name": "Hulu",
+    "tags": [
+      "streaming"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "disney-plus",
+    "name": "Disney+",
+    "tags": [
+      "streaming"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "DISNEY PLUS",
+      "DISNEYPLUS",
+      "DISNEY+"
+    ]
+  },
+  {
+    "id": "max",
+    "name": "Max",
+    "tags": [
+      "streaming"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "HBO MAX",
+      "HBOMAX",
+      "HBO"
+    ]
+  },
+  {
+    "id": "paramount-plus",
+    "name": "Paramount+",
+    "tags": [
+      "streaming"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "PARAMOUNT PLUS",
+      "PARAMOUNT+",
+      "PARAMOUNTPLUS"
+    ]
+  },
+  {
+    "id": "peacock",
+    "name": "Peacock",
+    "tags": [
+      "streaming"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "PEACOCK TV",
+      "PEACOCKTV"
+    ]
+  },
+  {
+    "id": "apple-tv",
+    "name": "Apple TV+",
+    "tags": [
+      "streaming"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "APPLE TV",
+      "APPLETV"
+    ]
+  },
+  {
+    "id": "amazon-prime",
+    "name": "Amazon Prime",
+    "tags": [
+      "streaming",
+      "shopping-membership"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "PRIME VIDEO",
+      "AMAZON PRIME",
+      "AMZN PRIME",
+      "PRIME MEMBERSHIP"
+    ]
+  },
+  {
+    "id": "youtube-premium",
+    "name": "YouTube Premium",
+    "tags": [
+      "streaming",
+      "music"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "YOUTUBE PREMIUM",
+      "YOUTUBEPREMIUM",
+      "YOUTUBE"
+    ]
+  },
+  {
+    "id": "spotify",
+    "name": "Spotify",
+    "tags": [
+      "music"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "SPOTIFY USA"
+    ]
+  },
+  {
+    "id": "apple-music",
+    "name": "Apple Music",
+    "tags": [
+      "music"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "tidal",
+    "name": "Tidal",
+    "tags": [
+      "music"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "pandora",
+    "name": "Pandora",
+    "tags": [
+      "music"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "audible",
+    "name": "Audible",
+    "tags": [
+      "audiobooks"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "kindle-unlimited",
+    "name": "Kindle Unlimited",
+    "tags": [
+      "books"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "KINDLE UNLTD"
+    ]
+  },
+  {
+    "id": "dropbox",
+    "name": "Dropbox",
+    "tags": [
+      "cloud-storage"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "google-one",
+    "name": "Google One",
+    "tags": [
+      "cloud-storage"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "GOOGLE STORAGE",
+      "GOOGLE *ONE",
+      "GOOGLE ONE"
+    ]
+  },
+  {
+    "id": "icloud",
+    "name": "iCloud",
+    "tags": [
+      "cloud-storage"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "ICLOUD+",
+      "ICLOUD STORAGE",
+      "APPLE.COM/BILL"
+    ]
+  },
+  {
+    "id": "onedrive",
+    "name": "OneDrive",
+    "tags": [
+      "cloud-storage"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "microsoft-365",
+    "name": "Microsoft 365",
+    "tags": [
+      "cloud-storage",
+      "productivity"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "MICROSOFT*365",
+      "MSFT 365",
+      "OFFICE 365",
+      "MICROSOFT 365"
+    ]
+  },
+  {
+    "id": "nordvpn",
+    "name": "NordVPN",
+    "tags": [
+      "vpn"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "NORD VPN"
+    ]
+  },
+  {
+    "id": "expressvpn",
+    "name": "ExpressVPN",
+    "tags": [
+      "vpn"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "EXPRESS VPN"
+    ]
+  },
+  {
+    "id": "proton",
+    "name": "Proton",
+    "tags": [
+      "vpn",
+      "email"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "PROTON AG",
+      "PROTONMAIL",
+      "PROTON VPN"
+    ]
+  },
+  {
+    "id": "nyt",
+    "name": "New York Times",
+    "tags": [
+      "news"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "NYTIMES",
+      "NYT DIGITAL",
+      "NEW YORK TIMES"
+    ]
+  },
+  {
+    "id": "wsj",
+    "name": "Wall Street Journal",
+    "tags": [
+      "news"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "WSJ",
+      "DOW JONES"
+    ]
+  },
+  {
+    "id": "washington-post",
+    "name": "Washington Post",
+    "tags": [
+      "news"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "WASHPOST",
+      "WASHINGTON POST"
+    ]
+  },
+  {
+    "id": "the-atlantic",
+    "name": "The Atlantic",
+    "tags": [
+      "news"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "ATLANTIC MONTHLY"
+    ]
+  },
+  {
+    "id": "substack",
+    "name": "Substack",
+    "tags": [
+      "news"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "medium",
+    "name": "Medium",
+    "tags": [
+      "news"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "MEDIUM.COM",
+      "MEDIUM MONTHLY",
+      "MEDIUM ANNUAL"
+    ]
+  },
+  {
+    "id": "peloton",
+    "name": "Peloton",
+    "tags": [
+      "fitness"
+    ],
+    "category": "Health"
+  },
+  {
+    "id": "planet-fitness",
+    "name": "Planet Fitness",
+    "tags": [
+      "fitness"
+    ],
+    "category": "Health",
+    "aliases": [
+      "PLANET FIT"
+    ]
+  },
+  {
+    "id": "equinox",
+    "name": "Equinox",
+    "tags": [
+      "fitness"
+    ],
+    "category": "Health"
+  },
+  {
+    "id": "24-hour-fitness",
+    "name": "24 Hour Fitness",
+    "tags": [
+      "fitness"
+    ],
+    "category": "Health",
+    "aliases": [
+      "24 HOUR FITNESS",
+      "24HR FITNESS"
+    ]
+  },
+  {
+    "id": "strava",
+    "name": "Strava",
+    "tags": [
+      "fitness"
+    ],
+    "category": "Health"
+  },
+  {
+    "id": "headspace",
+    "name": "Headspace",
+    "tags": [
+      "wellness"
+    ],
+    "category": "Health"
+  },
+  {
+    "id": "calm",
+    "name": "Calm",
+    "tags": [
+      "wellness"
+    ],
+    "category": "Health",
+    "aliases": [
+      "CALM.COM"
+    ]
+  },
+  {
+    "id": "1password",
+    "name": "1Password",
+    "tags": [
+      "password-manager"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "AGILEBITS"
+    ]
+  },
+  {
+    "id": "lastpass",
+    "name": "LastPass",
+    "tags": [
+      "password-manager"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "bitwarden",
+    "name": "Bitwarden",
+    "tags": [
+      "password-manager"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "dashlane",
+    "name": "Dashlane",
+    "tags": [
+      "password-manager"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "hellofresh",
+    "name": "HelloFresh",
+    "tags": [
+      "meal-kit"
+    ],
+    "category": "Groceries",
+    "aliases": [
+      "HELLO FRESH"
+    ]
+  },
+  {
+    "id": "blue-apron",
+    "name": "Blue Apron",
+    "tags": [
+      "meal-kit"
+    ],
+    "category": "Groceries"
+  },
+  {
+    "id": "openai",
+    "name": "OpenAI",
+    "tags": [
+      "ai-assistant"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "CHATGPT",
+      "OPENAI *CHATGPT"
+    ]
+  },
+  {
+    "id": "anthropic",
+    "name": "Anthropic",
+    "tags": [
+      "ai-assistant"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "CLAUDE.AI",
+      "CLAUDE AI",
+      "ANTHROPIC PBC"
+    ]
+  },
+  {
+    "id": "github",
+    "name": "GitHub",
+    "tags": [
+      "developer"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "adobe",
+    "name": "Adobe",
+    "tags": [
+      "creative"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "ADOBE CREATIVE",
+      "ADOBE INC",
+      "ADOBE SYSTEMS"
+    ]
+  },
+  {
+    "id": "notion",
+    "name": "Notion",
+    "tags": [
+      "productivity"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "NOTION LABS"
+    ]
+  },
+  {
+    "id": "slack",
+    "name": "Slack",
+    "tags": [
+      "productivity"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "zoom",
+    "name": "Zoom",
+    "tags": [
+      "productivity"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "ZOOM.US",
+      "ZOOM VIDEO"
+    ]
+  },
+  {
+    "id": "canva",
+    "name": "Canva",
+    "tags": [
+      "creative"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "xbox-game-pass",
+    "name": "Xbox Game Pass",
+    "tags": [
+      "gaming"
+    ],
+    "category": "Entertainment",
+    "aliases": [
+      "XBOX GAME PASS",
+      "MICROSOFT*XBOX",
+      "XBOX"
+    ]
+  },
+  {
+    "id": "playstation-plus",
+    "name": "PlayStation Plus",
+    "tags": [
+      "gaming"
+    ],
+    "category": "Entertainment",
+    "aliases": [
+      "PLAYSTATION NETWORK",
+      "PLAYSTATION",
+      "SONY PLAYSTATION"
+    ]
+  },
+  {
+    "id": "nintendo-online",
+    "name": "Nintendo Switch Online",
+    "tags": [
+      "gaming"
+    ],
+    "category": "Entertainment",
+    "aliases": [
+      "NINTENDO"
+    ]
+  },
+  {
+    "id": "patreon",
+    "name": "Patreon",
+    "tags": [
+      "creator-support"
+    ],
+    "category": "Entertainment"
+  },
+  {
+    "id": "dashpass",
+    "name": "DoorDash DashPass",
+    "tags": [
+      "delivery-membership"
+    ],
+    "category": "Dining",
+    "aliases": [
+      "DASHPASS",
+      "DOORDASH DASHPASS"
+    ]
+  },
+  {
+    "id": "uber-one",
+    "name": "Uber One",
+    "tags": [
+      "delivery-membership"
+    ],
+    "category": "Dining",
+    "aliases": [
+      "UBER ONE",
+      "UBER *ONE"
+    ]
+  },
+  {
+    "id": "instacart-plus",
+    "name": "Instacart+",
+    "tags": [
+      "delivery-membership"
+    ],
+    "category": "Groceries",
+    "aliases": [
+      "INSTACART PLUS",
+      "INSTACART+",
+      "INSTACART MEMBERSHIP"
+    ]
+  },
+  {
+    "id": "walmart-plus",
+    "name": "Walmart+",
+    "tags": [
+      "shopping-membership"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "WALMART PLUS",
+      "WALMART+"
+    ]
+  },
+  {
+    "id": "costco-membership",
+    "name": "Costco Membership",
+    "tags": [
+      "shopping-membership"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "COSTCO MEMBERSHIP",
+      "COSTCO ANNUAL"
+    ]
+  },
+  {
+    "id": "ring",
+    "name": "Ring",
+    "tags": [
+      "home-security"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "RING PROTECT",
+      "RING.COM"
+    ]
+  },
+  {
+    "id": "nest-aware",
+    "name": "Nest Aware",
+    "tags": [
+      "home-security"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "GOOGLE *NEST",
+      "NEST AWARE"
+    ]
+  },
+  {
+    "id": "siriusxm",
+    "name": "SiriusXM",
+    "tags": [
+      "music"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "SIRIUS XM",
+      "SIRIUS"
+    ]
+  },
+  {
+    "id": "verizon",
+    "name": "Verizon",
+    "tags": [
+      "mobile"
+    ],
+    "category": "Utilities",
+    "aliases": [
+      "VERIZON WIRELESS",
+      "VZWRLSS",
+      "VZW"
+    ]
+  },
+  {
+    "id": "att",
+    "name": "AT&T",
+    "tags": [
+      "mobile"
+    ],
+    "category": "Utilities",
+    "aliases": [
+      "AT&T",
+      "ATT*BILL",
+      "AT T"
+    ]
+  },
+  {
+    "id": "t-mobile",
+    "name": "T-Mobile",
+    "tags": [
+      "mobile"
+    ],
+    "category": "Utilities",
+    "aliases": [
+      "TMOBILE",
+      "T MOBILE"
+    ]
+  },
+  {
+    "id": "comcast",
+    "name": "Xfinity",
+    "tags": [
+      "internet"
+    ],
+    "category": "Utilities",
+    "aliases": [
+      "COMCAST",
+      "XFINITY"
+    ]
+  },
+  {
+    "id": "spectrum",
+    "name": "Spectrum",
+    "tags": [
+      "internet"
+    ],
+    "category": "Utilities",
+    "aliases": [
+      "CHARTER COMM",
+      "SPECTRUM"
+    ]
+  },
+  {
+    "id": "rocket-money",
+    "name": "Rocket Money",
+    "tags": [
+      "budgeting"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "ROCKETMONEY",
+      "TRUEBILL"
+    ]
+  },
+  {
+    "id": "amazon",
+    "name": "Amazon",
+    "tags": [
+      "shopping"
+    ],
+    "category": "Shopping",
+    "aliases": [
+      "AMZN",
+      "AMAZON.COM",
+      "AMZN.COM",
+      "AMAZON MKTP",
+      "AMZN MKTP",
+      "AMAZON MARKETPLACE"
+    ]
+  }
+]

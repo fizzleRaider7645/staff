@@ -23,7 +23,7 @@ The `staff` CLI manages projects in this repo. Run `./setup.sh` to install it.
 ```
 staff list              List all projects (filterable by --category, --language, --tag, --status)
 staff init <cat> <name> Scaffold a new project from a template
-staff install <project> Wire up a project (link skill dir, register MCP, etc.)
+staff install <project> Wire up a project (link skill dir, register MCP, etc.; --scope desktop for Claude Desktop)
 staff uninstall <name>  Remove an installed project
 staff build <project>   Build a project
 staff test <project>    Run a project's tests (--all for every project)

@@ -1,0 +1,15 @@
+#!/bin/sh
+# Launch the ledger MCP server with an interpreter that has the MCP SDK.
+# Claude Desktop starts servers with a minimal PATH and /usr/bin/python3 is
+# too old, so the interpreter is resolved here: LEDGER_PYTHON if set, the
+# project's own .venv (created by the build command), then whatever python3
+# is on PATH as a last resort.
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -n "$LEDGER_PYTHON" ]; then
+  PY="$LEDGER_PYTHON"
+elif [ -x "$ROOT/.venv/bin/python" ]; then
+  PY="$ROOT/.venv/bin/python"
+else
+  PY="$(command -v python3 || echo python3)"
+fi
+exec "$PY" "$ROOT/bin/ledger" mcp "$@"

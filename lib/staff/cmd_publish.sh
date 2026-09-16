@@ -272,16 +272,28 @@ publish_stage_mcp() {
 
   # ${PROJECT_ROOT} is where staff install substitutes the checkout path;
   # inside a plugin the loader provides ${CLAUDE_PLUGIN_ROOT} instead.
-  jq --arg name "$name" '
-    def walk_strings(f):
-      . as $in
-      | if type == "object" then reduce keys_unsorted[] as $k ({}; . + {($k): ($in[$k] | walk_strings(f))})
-        elif type == "array" then map(walk_strings(f))
-        elif type == "string" then f
-        else . end;
-    { mcpServers: { ($name): (.install.mcp_config
-        | walk_strings(gsub("\\$\\{PROJECT_ROOT\\}"; "${CLAUDE_PLUGIN_ROOT}"))) } }
-  ' "$manifest" > "$stage/.mcp.json" || return 1
+  local cfg
+  cfg=$(mcp_config_resolved "$manifest" '${CLAUDE_PLUGIN_ROOT}') || return 1
+  jq -n --arg name "$name" --argjson cfg "$cfg" '{ mcpServers: { ($name): $cfg } }' > "$stage/.mcp.json" || return 1
+
+  # A server may ship a skill that teaches Claude when to reach for its tools.
+  publish_move_skill_dir "$stage" "$name" || true
+  return 0
+}
+
+# A project's skill/SKILL.md becomes skills/<name>/ in the plugin. Returns 1
+# when the project has none, so callers can fall back or carry on.
+publish_move_skill_dir() {
+  local stage="$1" name="$2"
+  if [ -f "$stage/skill/SKILL.md" ]; then
+    mkdir -p "$stage/skills" && mv "$stage/skill" "$stage/skills/$name"
+    return $?
+  fi
+  if [ -f "$stage/SKILL.md" ]; then
+    mkdir -p "$stage/skills/$name" && mv "$stage/SKILL.md" "$stage/skills/$name/SKILL.md"
+    return $?
+  fi
+  return 1
 }
 
 publish_stage_tool() {
@@ -309,13 +321,7 @@ publish_stage_tool() {
   # skill that tells Claude when to reach for it and how to run it from
   # ${CLAUDE_PLUGIN_ROOT}. The project owns that skill (skill/SKILL.md);
   # publish only falls back to a generated one.
-  mkdir -p "$stage/skills" || return 1
-  if [ -f "$stage/skill/SKILL.md" ]; then
-    mv "$stage/skill" "$stage/skills/$name" || return 1
-  elif [ -f "$stage/SKILL.md" ]; then
-    mkdir -p "$stage/skills/$name" || return 1
-    mv "$stage/SKILL.md" "$stage/skills/$name/SKILL.md" || return 1
-  else
+  if ! publish_move_skill_dir "$stage" "$name"; then
     warn "$name has no skill/SKILL.md — generating a minimal one. Write skill/SKILL.md in the project to control when Claude uses the tool."
     publish_generate_tool_skill "$stage/skills/$name" "$name" "$binary" "$manifest" || return 1
   fi

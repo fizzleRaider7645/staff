@@ -51,6 +51,29 @@ run_manifest_command() {
   ( cd "$dir" && bash -c "$cmd" )
 }
 
+# The manifest's mcp_config with ${PROJECT_ROOT} replaced wherever a string
+# can carry it — command, args, env, headers — as one JSON object. Both
+# install (checkout path) and publish (${CLAUDE_PLUGIN_ROOT}) go through here;
+# install used to touch only args, so a ${PROJECT_ROOT} in command reached
+# Claude Code verbatim.
+mcp_config_resolved() {
+  local manifest="$1" replacement="$2"
+  jq --arg r "$replacement" '
+    def walk_strings(f):
+      . as $in
+      | if type == "object" then reduce keys_unsorted[] as $k ({}; . + {($k): ($in[$k] | walk_strings(f))})
+        elif type == "array" then map(walk_strings(f))
+        elif type == "string" then f
+        else . end;
+    .install.mcp_config | walk_strings(gsub("\\$\\{PROJECT_ROOT\\}"; $r))
+  ' "$manifest"
+}
+
+# Claude Desktop (and Cowork) read MCP servers from their own config file.
+claude_desktop_config_path() {
+  echo "$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+}
+
 require_jq() {
   command -v jq >/dev/null 2>&1 || die "jq is required but not installed. Install it: brew install jq"
 }

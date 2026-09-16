@@ -82,6 +82,14 @@ assert_eq "and in env values" '${CLAUDE_PLUGIN_ROOT}' \
   "$(jq -r '.mcpServers["p-mcp"].env.ROOT' "$PLUGINS/p-mcp/.mcp.json")"
 assert_file "the server's files ship with it" "$PLUGINS/p-mcp/dist/index.js"
 
+# An MCP project that carries skill/SKILL.md ships it the way a tool does.
+mkdir -p "$SB/repo/mcps/p-mcp/skill"
+printf -- '---\nname: p-mcp\ndescription: d\n---\nUse the tools.\n' > "$SB/repo/mcps/p-mcp/skill/SKILL.md"
+run "$STAFF" publish p-mcp
+assert_ok "republish the mcp with a skill"
+assert_file "the skill lands under skills/<name>/" "$PLUGINS/p-mcp/skills/p-mcp/SKILL.md"
+assert_no_file "and not at skill/" "$PLUGINS/p-mcp/skill"
+
 # The marketplace is distributed by cloning, so whatever .gitignore hides
 # from the clone is missing from the installed plugin. dist/ is the usual case.
 printf 'dist/\n' > "$SB/repo/.gitignore"

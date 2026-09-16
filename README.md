@@ -29,7 +29,7 @@ staff add_source <name> <path>      # Register and auto-install an external proj
 staff update_source <name>          # Re-scan a registered source for upstream changes
 staff remove_source <name>          # Unregister a source and uninstall what it provided
 staff init <category> <name>        # Scaffold a new project
-staff install <project>             # Wire it into Claude Code
+staff install <project>             # Wire it into Claude Code (--scope desktop for Claude Desktop)
 staff test <project>                # Run its tests (--all for every project)
 staff uninstall <project>           # Remove an installed project
 staff build <project>               # Build a project
@@ -138,7 +138,7 @@ There is no index file. Every command walks the tree for `staff.json` manifests,
 | Category | `staff install` action                         |
 | -------- | ---------------------------------------------- |
 | skill    | Symlinks the skill directory to `~/.claude/skills/<name>` |
-| mcp      | Adds an `mcpServers` entry to `~/.claude.json` (user) or `.mcp.json` (project) |
+| mcp      | Adds an `mcpServers` entry to `~/.claude.json` (user), `.mcp.json` (project) or Claude Desktop's config (`--scope desktop`); `install.binary` also gets a `~/.local/bin` wrapper |
 | agent    | Symlinks the agent file to `~/.claude/agents/<name>.md` |
 | tool     | Creates wrapper script in `~/.local/bin/`      |
 

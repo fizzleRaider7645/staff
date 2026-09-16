@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ledger"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "Personal budget tracker: SimpleFIN sync, insights, dashboard, MCP server"
+# The CLI is standard library only. The MCP server needs the official SDK,
+# which pulls pydantic, starlette and friends, so it stays an extra.
+dependencies = []
+
+[project.optional-dependencies]
+mcp = ["mcp>=2,<3"]
+test = ["pytest"]
+
+[project.scripts]
+ledger = "ledger.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ledger = ["schema.sql", "data/*.json", "data/*.html"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

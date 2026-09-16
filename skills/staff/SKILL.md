@@ -36,8 +36,8 @@ staff add_source <repo-name> <path> [--scope user|project] [--no-install]
 staff update_source <repo-name> [--no-install]
 staff remove_source <repo-name> [--keep-installed]
 staff init <category> <name> [--lang ts|python|go|shell|markdown]
-staff install <project> [--scope user|project] [--allow-build]
-staff uninstall <project> [--scope user|project]
+staff install <project> [--scope user|project|desktop] [--allow-build]
+staff uninstall <project> [--scope user|project|desktop]
 staff build <project> [--allow-build]
 staff test <project> [--allow-test]
 staff test --all [--allow-test]
@@ -54,7 +54,7 @@ Categories for `init`: skill, mcp, agent, tool, harness, lib.
 - **Adding external projects**: `staff add_source <repo-name> <path>` — creates `sources/<repo-name>/` (read-only symlink + source metadata), discovers projects via native `staff.json` or per-category format recognition (SKILL.md, agent frontmatter), and auto-installs by default.
 - **Syncing an external source**: `staff update_source <repo-name>` — re-runs discovery against the existing symlink, installs what upstream added, uninstalls what it dropped, and re-derives synthesized manifests. Foreign-format discovery runs only at `add_source`/`update_source` time — a plain `staff list` will not re-synthesize manifests — so this is the only way to pick up upstream changes. `staff doctor` flags sources whose git SHA has moved.
 - **Dropping an external source**: `staff remove_source <repo-name>` — uninstalls every project it contributed, then removes `sources/<repo-name>/`. The external repo is never modified.
-- **Wiring a project into Claude Code**: `staff install <project>` — links a skill's whole directory to `~/.claude/skills/<name>` (skills carry scripts and references alongside SKILL.md; linking only SKILL.md leaves those unreachable), adds MCP servers to `~/.claude.json` (user) or `.mcp.json` (project), links agents as `<project>.md`, or creates tool wrappers depending on category.
+- **Wiring a project into Claude Code**: `staff install <project>` — links a skill's whole directory to `~/.claude/skills/<name>` (skills carry scripts and references alongside SKILL.md; linking only SKILL.md leaves those unreachable), adds MCP servers to `~/.claude.json` (user), `.mcp.json` (project) or Claude Desktop's `claude_desktop_config.json` (`--scope desktop`, MCP only; relaunch Desktop afterwards), links agents as `<project>.md`, or creates tool wrappers depending on category. An MCP project with `install.binary` gets the `~/.local/bin` wrapper too. `${PROJECT_ROOT}` is substituted throughout `mcp_config` (command, args, env).
 - **After changing any `staff.json`**: nothing. Discovery is live. `staff doctor` reports duplicate project names and unresolvable source links.
 - **Running tests**: `staff test <project>` — runs `test.command` from the manifest, or infers one from the project's build files. `--all` runs every project's tests and summarises; projects with no tests are skipped rather than failed.
 - **Sharing a project outside this repo**: `staff publish <project>` — writes a self-contained Claude Code plugin to `plugins/<name>/` (skill → `skills/<name>/`, agent → `agents/<name>.md`, mcp → `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}`, tool → the project behind its `skill/SKILL.md`) and lists it in `.claude-plugin/marketplace.json`. It is a copy, not a link: re-run after changes and bump `version` in `staff.json` to ship them. A tool should carry a `skill/SKILL.md` that says when Claude should reach for it and runs `${CLAUDE_PLUGIN_ROOT}/<binary>`; without one publish generates a thin placeholder.
