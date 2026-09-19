@@ -1,125 +1,86 @@
-# Handover — 2026-09-18
+# Handover — 2026-09-18 (evening)
 
-`main` clean, all suites green: 292 CLI (Linux + macOS in CI), 131 ledger,
-154 sdlc, 38 token-count. Shellcheck advisory and still red.
+`main` clean and pushed. Suites green: 292 CLI, 166 ledger, 154 sdlc, 38
+token-count, plus the live demo-bridge run. Shellcheck advisory and still red.
 
 ## State
 
 | | |
 |---|---|
-| Commands | `list, add_source, update_source, remove_source, install, uninstall, build, test, init, publish, doctor` |
 | Projects | `staff` (skill), `sdlc` (harness), `token-count` (tool), **`ledger` (mcp)** |
 | Published | `token-count`, `ledger` in `.claude-plugin/marketplace.json` |
 | Empty categories | `agents/` |
-| ledger data | 23 accounts, 4 institutions, history back to 2026-01-16, last sync 2026-09-18 |
-| ledger schedule | installed, daily 07:30, `~/.ledger/logs/sync.log` |
+| ledger data | 23 accounts, history 2026-06-21 onward, daily sync 07:30 |
+| ledger MCP | 25 tools |
 
-## What changed on 2026-09-18
+## What changed this session
 
-The four near-term fixes found on real data, plus the plugin's interpreter.
+Doug said the categories were not good enough to build budgets on. I had
+measured ten uncategorized rows and called the coverage fine. That was the
+wrong measurement and he was right: almost nothing was *missing* a category,
+and a lot of it had the **wrong** one, which no report could show because a
+confident wrong answer looks identical to a right one.
 
-**Account kinds.** Issuers put the product name in the account name instead
-of the word "card", so Venture, Chase Freedom and Chase Sapphire came back
-"unknown"; a 401(k) named "MY SAVINGS PLAN" was filed as savings. The
-heuristic reads plan and card product names, falls back to a negative
-balance meaning credit and to the institution for an unclassifiable
-brokerage account, and requires short tokens like IRA to stand alone.
-`ledger accounts reclassify` re-runs it without waiting for a sync; it fixed
-6 of the 13 automatically. The other 7 are set by hand: SoFi Invest "Active"
-and "Automated" as investment, and the six generically named SoFi vaults as
-savings.
+**The classifier.** Substring matching over an ordered keyword table was the
+root cause. MOBIL matched GOMOBILEPGH, which is parking. SPIRIT matched WINE
+AND SPIRITS and filed a liquor store under airlines. ROSS matched MILLER'S
+CROSSING. Keywords now land on an asymmetric boundary — nothing alphanumeric
+before, only a letter barred after, because FEDEX259723989 is how banks write
+a store number. Three more classes fixed: internal transfers that name one of
+your own accounts (SoFi writes "Withdrawal: To Checking - 9538", and
+WITHDRAWAL was a Cash & ATM keyword, so $6,208 of money moving counted as cash
+spending); delivery platforms, which are a channel and not a merchant, so Home
+Depot and Best Buy were dinners; and fees inside a brokerage, which this
+morning's investment-account rule was swallowing. July spending fell $3,400 and
+August $2,570.80 when the transfers stopped counting.
 
-**Cash on hand** was $1,000 against $9,000 of balances because SimpleFIN's
-available-balance is optional and most of these institutions send a literal
-0 rather than omitting it. A zero available against a positive balance now
-reads as unreported. Cash is $9,088.28.
+**Auditability.** Every row now records why it has its category — `keyword:MOBIL`,
+`transfer:own-account`, `rule:17` — and rule output is stamped `rule` rather
+than the rule author's name, which had frozen all 41 rule-set rows against
+repair. `ledger review` groups rows by what decided them and runs structural
+checks. `ledger categorize --repair --dry-run` shows a change before it lands.
 
-**SoFi vaults.** The seven accounts sharing number 8966 are buckets inside
-"Savings - 8966" ($2,086.44 of the parent's $2,238.19), and net worth counted
-them twice. They are hidden, and hiding now drops an account from every
-total and from recurring detection, not just the account list; its rows stay
-searchable by naming the account. Net worth is $155,111.36.
+**Budgets.** Monthly cap per category with rollover. Carry derived not stored,
+overspend carrying negative and uncapped, positive carry capped at three months.
+Run rate and envelope reported separately. Seeding is coverage-aware and states
+its basis and confidence per proposal. CLI, five MCP tools, insights that lead
+with what is over but also name the wins, and a dashboard section.
 
-**Categorization.** 184 uncategorized rows carrying $84.7k are down to 10
-rows worth $335. Nothing inside an investment or loan account counts as
-household cash flow now — an ETF purchase, a 401(k) contribution landing and
-a loan disbursement are all movement, though a fee charged inside one is
-still a fee. Paying a card is matched against the institutions where the
-ledger already holds a card or a loan: if it is on file the payment is a
-transfer even though partial payments mean the halves never pair, and if it
-is not, the payment is the only trace of that spending and stays an expense
-under a new **Card Payments** category. It converts to a transfer on its own
-once the card is connected. Merchant coverage grew to cover childcare,
-resale apps, insurers, car finance, regional utilities and gas chains,
-warehouse clubs, hardware, mortgage servicers and buy-now-pay-later.
+**History.** Measured and then tested. SoFi checking starts 2026-08-27 and the
+personal loan 2026-08-31, so **not one complete month exists**. `ledger sync
+--gaps` asked the bridge again for those spans and recovered nothing — the
+windows had already been fetched while those accounts existed, so the bridge
+genuinely holds no earlier history. October is the first month that can be
+complete.
 
-**The published plugin's server** no longer dies on launch. `bin/ledger-mcp`
-checks each candidate interpreter for the `mcp` SDK instead of assuming, and
-builds a venv under `~/.ledger/mcp-venv` when nothing on the machine has it.
-Only the SDK goes in it; the code still comes from the plugin's own `src/`.
-`LEDGER_PYTHON` is now authoritative rather than a preference with a silent
-fallback.
+## What Doug should do
 
-Two suite bugs surfaced on the way. The sync log stamped rows with the wall
-clock instead of the sync's own clock, so the request budget disagreed with
-every other date in the run and the budget test became a time bomb that
-started failing the day after it was written. And the tests never blocked
-the Keychain, so on a macOS machine that has really run `ledger setup` the
-suite found live bank credentials — which is why CI was green while the
-suite failed here.
-
-## Both classification calls are settled
-
-`FREEDOM` is Freedom Mortgage, servicing one of Doug's mortgages, so rule 2
-(`FREEDOM` → Housing) is right. The earlier reading of these as Chase Freedom
-card payments was wrong; Chase Freedom is paid from Checking-9538 as
-"ACH: CHASE CREDIT CRD".
-
-`ACH: Lowes` $5,688.17 is a Lowe's store-card payment, now rule 19
-(`ACH LOWES` → Card Payments). The two small `LOWES` purchases on the Venture
-card normalize to a different payee key and stay Shopping, which dropped
-September Shopping from $7,763 to $2,075.
-
-Both stay user rules rather than shipped keywords. A bare "FREEDOM" would
-catch Chase Freedom card payments for anyone else, and an ACH to a retailer
-is as often a special order as a store-card payment.
-
-## The biggest remaining data gap is the unlinked cards
-
-$24,839 of September's $36,096 "spending" is payments to cards that are not
-SimpleFIN connections — Bilt, Citizens, Barclaycard, Apple Card and now
-Lowe's. The category is honest, but the purchases behind it are invisible, so
-no category breakdown for that money exists. Connecting those cards would
-move it into real categories and convert the payments to transfers on their
-own, with no rule changes needed.
-
-## Net worth leaves the mortgages out
-
-Neither mortgage servicer is a SimpleFIN connection — Freedom Mortgage and
-Guaranteed Rate are only visible as outgoing payments, and the only loan
-account on file is the SoFi personal loan. So $155,111.36 counts neither the
-properties nor the debt against them. Connecting the mortgages, if the
-servicers support it, would make that number mean what it says.
-
-## Still uncategorized
-
-10 rows, $335 total, all of them things only you can name: six "ACH: PAYPAL"
-($174), "WAVES #2" ($90), "Debit Card: PALOT KESARI LLC" ($40), "Direct
-Payment: PAYPAL" ($30), "VIATOUCH MEDIA" ($1).
+1. **Connect the unlinked cards in SimpleFIN** — Bilt, Citizens, Barclaycard,
+   Apple Card, Lowe's. $24,839 of September's $36,096 is payments to them, with
+   no category breakdown behind it, and it is the largest remaining hole. Once
+   connected, the payments convert to transfers on their own.
+2. **Review the budgets.** Five were seeded from recurring charges; the rest I
+   set by hand from the visible months and they are guesses. `ledger budget`
+   shows where they stand; `ledger budget set <category> --amount N` changes one.
+3. **Re-authenticate the bundled `claude`** if you want headless verification
+   again — its OAuth session has expired, so the skill's budget recipes were not
+   checked against a live Claude session.
+4. **Relaunch Claude Desktop** to pick up the five new budget tools.
 
 ## Next
 
+
 1. **Cowork visibility of local MCP servers** — still unverified. Ask a Cowork
    session a money question. If it cannot reach the server, run
-   `ledger schedule install --export` so `~/Documents/Claude/ledger/summary.json`
-   and the dashboard refresh daily.
-2. **Claude Desktop** needs a full quit and relaunch to pick up the registration
-   if that has not happened yet.
-3. **Rocket Money CSV import** (Phase 5 in the plan) — blocked, no export
-   exists yet. Design is in the plan file.
-4. **Insight noise.** "Unusual spend" fires on seven categories at once
-   because history only reaches 2026-01 and the early months are thin. Worth
-   a minimum-history guard.
+   `ledger schedule install --export`.
+2. **Rocket Money CSV import** — now worth more than it was. It is the only
+   route to history from before June, which is what would make budget seeding
+   real rather than a guess. Design is in the original plan file.
+3. **Insight noise.** "Unusual spend" fires on several categories at once
+   because the baseline months are thin. It needs a minimum-history guard, and
+   it should reuse `reports.complete_months` now that that exists.
+4. **The ten rows that are still uncategorized** are six PayPal transfers, a
+   vending machine, a car wash and an LLC debit. Only Doug can name them.
 5. **Resolve the five duplicated skills** (`pdf`, `docx`, `pptx`, `xlsx`,
    `skill-creator`) installed by both staff and the `anthropic-skills` plugin.
 6. **A real agent**; `agents/` is still empty.

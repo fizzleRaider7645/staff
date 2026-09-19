@@ -7,7 +7,7 @@ import os
 import sqlite3
 from pathlib import Path
 
-from ledger import config, credentials, db, simplefin, sync
+from ledger import config, credentials, db, reports, simplefin, sync
 from ledger.money import epoch_to_date
 
 
@@ -60,6 +60,25 @@ def checks(conn: sqlite3.Connection, now: int | None = None) -> list[dict]:
         else:
             cursor = int(db.get_meta(conn, "backfill_cursor", now))
             out.append(_check("history", True, f"backfilled to {epoch_to_date(cursor)}; more arrives on each sync", "warn"))
+
+    gaps = sync.history_gaps(conn)
+    if gaps:
+        names = ", ".join(g["name"] for g in gaps[:3])
+        tried = all(g["attempts"] and not g["gained"] for g in gaps)
+        out.append(_check(
+            "coverage", True,
+            f"{len(gaps)} account(s) start later than the rest: {names}. "
+            + ("The bridge has nothing earlier, so those months stay incomplete."
+               if tried else "Try: ledger sync --gaps"),
+            "warn"))
+    months = reports.complete_months(conn)
+    complete = [m["month"] for m in months if m["complete"]]
+    if months:
+        out.append(_check(
+            "complete months", bool(complete),
+            f"{len(complete)} complete month(s) of history"
+            + ("" if complete else " — budgets seeded from this are guesses"),
+            "ok" if len(complete) >= 3 else "warn"))
 
     unc = conn.execute("SELECT COUNT(*) FROM transactions WHERE removed_at IS NULL AND category_id IS NULL").fetchone()[0]
     if unc:

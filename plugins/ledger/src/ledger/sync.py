@@ -20,8 +20,8 @@ import sqlite3
 import time
 from dataclasses import dataclass, field
 
-from ledger import categorize, db, simplefin
-from ledger.money import epoch_to_date, parse_cents
+from ledger import categorize, db, match, reports, simplefin
+from ledger.money import date_to_epoch, days_between, epoch_to_date, parse_cents
 from ledger.normalize import payee_key
 
 DAY = 86400
@@ -81,6 +81,7 @@ def budget_available(conn: sqlite3.Connection, now: int, ceiling: int = DAILY_CE
 # Retirement and equity plans first: "MY SAVINGS PLAN" is a 401(k), not a
 # savings account, and "RESTRICTED STOCK UNITS" is a brokerage account.
 INVESTMENT_WORDS = ("401", "403B", "403(B)", "457", "IRA", "ROTH", "BROKERAGE", "INVEST",
+                    "INVESTMENT", "INVESTMENTS", "INVESTING",
                     "HSA", "529", "SAVINGS PLAN", "RETIREMENT", "PENSION", "RSU",
                     "RESTRICTED STOCK", "STOCK PLAN", "ESPP", "THRIFT SAVINGS", "ANNUITY")
 # Card product names. Issuers rarely put "credit" or "card" in the account
@@ -90,43 +91,32 @@ CREDIT_WORDS = ("CREDIT", "CARD", "VISA", "MASTERCARD", "AMEX", "AMERICAN EXPRES
                 "SLATE", "CUSTOM CASH", "DOUBLE CASH", "BLUE CASH", "ACTIVE CASH", "AUTOGRAPH",
                 "PLATINUM", "GOLD DELTA", "SKYMILES", "REWARDS")
 LOAN_WORDS = ("MORTGAGE", "LOAN", "AUTO FIN", "HELOC")
-SAVINGS_WORDS = ("SAVING", "MONEY MARKET", "VAULT", "CERTIFICATE OF DEPOSIT")
+SAVINGS_WORDS = ("SAVING", "SAVINGS", "MONEY MARKET", "VAULT", "CERTIFICATE OF DEPOSIT")
 CHECKING_WORDS = ("CHECKING", "CHEQUING", "SPENDING", "EVERYDAY", "CASH MANAGEMENT")
 # When the name says nothing, the institution still might: an unclassified
 # account at a brokerage is a brokerage account.
 INVESTMENT_ORGS = ("FIDELITY", "VANGUARD", "SCHWAB", "ROBINHOOD", "E*TRADE", "ETRADE",
+                   "INVESTMENT", "INVESTMENTS", "INVESTING",
                    "MERRILL", "AMERITRADE", "INTERACTIVE BROKERS", "BETTERMENT",
                    "WEALTHFRONT", "INVEST", "SECURITIES", "STASH", "M1 FINANCE")
 
 
-def _mentions(text: str, words) -> bool:
-    """Substring match, except that a word ending in a digit or a short
-    all-caps token has to stand alone: "IRA" must not match "MIRAMAR"."""
-    for w in words:
-        if len(w) <= 4:
-            if re.search(r"(?<![A-Z0-9])" + re.escape(w) + r"(?![A-Z0-9])", text):
-                return True
-        elif w in text:
-            return True
-    return False
-
-
 def account_kind(name: str, balance_cents: int | None = None, org: str | None = None) -> str:
     n = (name or "").upper()
-    if _mentions(n, INVESTMENT_WORDS):
+    if match.any_mention(n, INVESTMENT_WORDS):
         return "investment"
-    if _mentions(n, CREDIT_WORDS):
+    if match.any_mention(n, CREDIT_WORDS):
         return "credit"
-    if _mentions(n, LOAN_WORDS):
+    if match.any_mention(n, LOAN_WORDS):
         return "loan"
-    if _mentions(n, SAVINGS_WORDS):
+    if match.any_mention(n, SAVINGS_WORDS):
         return "savings"
-    if _mentions(n, CHECKING_WORDS):
+    if match.any_mention(n, CHECKING_WORDS):
         return "checking"
     if balance_cents is not None and balance_cents < 0:
         # Owing money with nothing in the name that says loan: a card.
         return "credit"
-    if org and _mentions(org.upper(), INVESTMENT_ORGS):
+    if org and match.any_mention(org, INVESTMENT_ORGS):
         return "investment"
     return "unknown"
 
@@ -393,6 +383,71 @@ def _note_empty(conn, result: SyncResult, start: int, now: int) -> None:
 
 def backfill_done(conn) -> bool:
     return db.get_meta(conn, "backfill_done") == "1"
+
+
+GAPFILL_MAX_ATTEMPTS = 2
+# Below this, an account's later start is just when its first charge landed.
+MIN_GAP_DAYS = 14
+
+
+def history_gaps(conn: sqlite3.Connection) -> list[dict]:
+    """Accounts whose history starts noticeably later than the ledger's own.
+
+    An account linked to the bridge after the others has nothing from before
+    it was linked, and in a monthly total that is indistinguishable from a
+    quiet month — which is how a budget gets seeded from a month with a hole
+    in it. This is the measurement; whether the bridge can fill the gap is a
+    separate and much less certain question.
+    """
+    rows = [a for a in reports.coverage(conn) if a["transactions"]]
+    if not rows:
+        return []
+    earliest = min(a["first_tx"] for a in rows)
+    out = []
+    for a in rows:
+        if days_between(earliest, a["first_tx"]) < MIN_GAP_DAYS:
+            continue
+        attempts = json.loads(db.get_meta(conn, f"gapfill:{a['id']}", "null") or "null") or {}
+        out.append({"account_id": a["id"], "name": a["name"], "first_tx": a["first_tx"],
+                    "ledger_first": earliest,
+                    "missing_days": days_between(earliest, a["first_tx"]),
+                    "attempts": attempts.get("attempts", 0), "gained": attempts.get("gained", 0)})
+    out.sort(key=lambda g: -g["missing_days"])
+    return out
+
+
+def backfill_gaps(conn: sqlite3.Connection, access_url: str, now: int, fetch,
+                  max_requests: int = 2) -> list[dict]:
+    """Ask the bridge once more for the history those accounts are missing.
+
+    Bounded on purpose. The windows were already fetched while these accounts
+    existed and came back empty, so this is a long shot, not a repair: it
+    stops after two attempts that gain nothing rather than spending the daily
+    request budget on the same silence every morning.
+    """
+    results = []
+    for gap in history_gaps(conn):
+        if max_requests <= 0:
+            break
+        if gap["attempts"] >= GAPFILL_MAX_ATTEMPTS and not gap["gained"]:
+            continue
+        end = date_to_epoch(gap["first_tx"]) + OVERLAP_DAYS * DAY
+        start = max(date_to_epoch(gap["ledger_first"]), end - WINDOW_DAYS * DAY)
+        before = conn.execute("SELECT COUNT(*) FROM transactions WHERE account_id = ?",
+                              (gap["account_id"],)).fetchone()[0]
+        data = fetch(access_url, start, end, pending=False, account_ids=[gap["account_id"]])
+        result = ingest(conn, data, now, "backfill", start, end)
+        _log(conn, now, now, result, "backfill", start, end, True, None)
+        after = conn.execute("SELECT COUNT(*) FROM transactions WHERE account_id = ?",
+                             (gap["account_id"],)).fetchone()[0]
+        gained = after - before
+        db.set_meta(conn, f"gapfill:{gap['account_id']}", json.dumps({
+            "attempts": gap["attempts"] + 1, "last_try": now, "gained": gap["gained"] + gained}))
+        conn.commit()
+        max_requests -= 1
+        results.append({**gap, "requested_from": epoch_to_date(start),
+                        "requested_to": epoch_to_date(end), "gained": gained})
+    return results
 
 
 def run(conn: sqlite3.Connection, access_url: str, *, now: int | None = None,

@@ -84,3 +84,17 @@ def month_bounds(month: str) -> tuple[str, str]:
 
 def days_in_month(month: str) -> int:
     return calendar.monthrange(int(month[:4]), int(month[5:7]))[1]
+
+
+MIN_DAY_FOR_PACE = 7
+
+
+def month_fraction(today: str) -> float:
+    """How much of `today`'s month has elapsed, as a fraction."""
+    return int(today[8:10]) / days_in_month(month_of(today))
+
+
+def prorate(cents: int, today: str) -> int:
+    """Month-to-date spending projected to the end of the month."""
+    frac = month_fraction(today)
+    return int(cents / frac) if frac > 0 else cents

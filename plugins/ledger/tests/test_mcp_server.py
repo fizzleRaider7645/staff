@@ -71,7 +71,9 @@ def test_tools_resources_and_no_credential_leak(home):
     out = asyncio.run(_session(home, run))
     expected = {"list_accounts", "search_transactions", "spending_summary", "cash_flow", "list_subscriptions",
                 "get_insights", "list_goals", "sync_status", "set_goal", "remove_goal", "categorize_transactions",
-                "add_rule", "dismiss_insight", "mark_subscription", "run_sync", "write_dashboard"}
+                "add_rule", "dismiss_insight", "mark_subscription", "run_sync", "write_dashboard",
+                "review_categories", "list_rules", "remove_rule", "recategorize",
+                "list_budgets", "set_budget", "remove_budget", "suggest_budgets", "reset_carry"}
     assert expected <= set(out["tools"])
     assert all(out["tools"][n].description for n in expected), "every tool explains itself"
 

@@ -16,7 +16,11 @@
     "tags": [
       "streaming"
     ],
-    "category": "Subscriptions"
+    "category": "Subscriptions",
+    "aliases": [
+      "HLU",
+      "HULUPLUS"
+    ]
   },
   {
     "id": "disney-plus",

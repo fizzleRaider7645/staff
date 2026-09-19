@@ -48,6 +48,9 @@ CREATE TABLE IF NOT EXISTS transactions (
   category_id     INTEGER,
   -- rule|user|claude|import|heuristic
   category_source TEXT,
+  -- what decided it: keyword:MOBIL, rule:17, transfer:own-account
+  category_reason TEXT,
+  category_rule_id INTEGER,
   ignored         INTEGER NOT NULL DEFAULT 0,
   superseded_by   TEXT,
   removed_at      INTEGER,
@@ -156,3 +159,36 @@ CREATE TABLE IF NOT EXISTS insight_dismissals (
   dismissed_at INTEGER NOT NULL,
   by           TEXT
 );
+
+-- Budgets: a monthly cap per category. Changing an amount inserts a row with a
+-- later start_month rather than overwriting, so the history of what you meant
+-- to spend survives. Carry is derived from the months themselves, never
+-- stored: a stored carry freezes whatever the categories said at the time, and
+-- these categories are still being corrected.
+CREATE TABLE IF NOT EXISTS budgets (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  category_id      INTEGER NOT NULL,
+  amount_cents     INTEGER NOT NULL,
+  rollover         INTEGER NOT NULL DEFAULT 1,
+  carry_cap_months REAL NOT NULL DEFAULT 3.0,
+  start_month      TEXT NOT NULL,
+  end_month        TEXT,
+  basis            TEXT,
+  notes            TEXT,
+  created_at       INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_budget_cat_start ON budgets(category_id, start_month);
+
+-- Deliberate interventions in the carry: zero it out after a one-off, or hand
+-- a category extra room for one month. Dated and auditable, unlike editing an
+-- amount and forgetting why.
+CREATE TABLE IF NOT EXISTS budget_adjustments (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  budget_id    INTEGER NOT NULL,
+  month        TEXT NOT NULL,
+  kind         TEXT NOT NULL,          -- reset | add
+  amount_cents INTEGER NOT NULL DEFAULT 0,
+  note         TEXT,
+  created_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_budget_adj ON budget_adjustments(budget_id, month);

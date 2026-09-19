@@ -14,7 +14,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from ledger import config, db, goals, insights, recurring, reports, svg, sync
+from ledger import budgets, config, db, goals, insights, recurring, reports, svg, sync
 from ledger.money import add_days, epoch_to_date, fmt, month_bounds, month_of, shift_month
 
 _TEMPLATE = Path(__file__).parent / "data" / "dashboard_template.html"
@@ -56,6 +56,7 @@ def build_snapshot(conn: sqlite3.Connection, now: int | None = None) -> dict:
         "subscriptions_monthly_cents": sum(r["monthly_cents"] for r in subs if r["status"] == "active"),
         "insights": [i.as_dict() for i in found],
         "goals": goals.progress(conn, now),
+        "budgets": budgets.summary(conn, month, now),
         "upcoming": due, "upcoming_total_cents": sum(r["typical_amount_cents"] for r in due),
         "last_sync": None if last is None else {
             "at": epoch_to_date(last["started_at"]), "ok": bool(last["ok"]), "kind": last["kind"],
@@ -128,6 +129,35 @@ def _insights(snap) -> str:
     return "".join(out)
 
 
+def _budgets(snap) -> str:
+    """One bar per budget. The tick is where the month itself has got to, so a
+    bar past the tick is spending faster than the month is passing."""
+    summary = snap["budgets"]
+    rows = summary["budgets"]
+    if not rows:
+        return ('<p class="muted">no budgets yet — ledger budget suggest, '
+                'then ledger budget set &lt;category&gt; --amount 500</p>')
+    out = []
+    for b in rows:
+        pct = b["percent"] if b["percent"] is not None else 100
+        color = svg.PALETTE[3] if b["over_budget"] else (svg.PALETTE[1] if b["over_rate"] else svg.PALETTE[2])
+        sub = f"{fmt(b['spent_cents'])} of {fmt(b['available_cents'])}"
+        if b["carry_in_cents"]:
+            sub += f" · {fmt(b['carry_in_cents'])} carried in"
+        if b["over_budget"]:
+            sub += f" · {fmt(b['spent_cents'] - b['available_cents'])} over"
+        elif b["over_rate"]:
+            sub += f" · running at {fmt(b['projected_cents'])} a month"
+        out.append(f"<div><strong>{_e(b['category'])}</strong> "
+                   f"<span class='muted'>{round(pct)}%</span>{svg.progress(min(pct, 100), color=color)}"
+                   f"<div class='muted'>{_e(sub)}</div></div>")
+    if summary["unbudgeted"]:
+        named = ", ".join(f"{u['category']} {fmt(u['spent_cents'])}" for u in summary["unbudgeted"][:3])
+        out.append(f"<p class='muted'>{_e(fmt(summary['unbudgeted_cents']))} of spending has no budget — "
+                   f"{_e(named)}</p>")
+    return "".join(out)
+
+
 def _goals(snap) -> str:
     if not snap["goals"]:
         return '<p class="muted">no goals yet — ledger goals add &lt;name&gt; --target 5000 --by 2027-06-01 --account &lt;id&gt;</p>'
@@ -180,6 +210,7 @@ def render(snap: dict) -> str:
     body.append(f'<section class="card"><h2>Accounts</h2>{_accounts(snap)}</section>')
     body.append(f'<section class="card"><h2>Cash flow</h2>{svg.grouped_bars(snap["cash_flow"], fmt=fmt)}</section>')
     body.append(f'<section class="card"><h2>Spending by category</h2>{_categories(snap)}</section>')
+    body.append(f'<section class="card"><h2>Budgets · {_e(snap["budgets"]["month"])}</h2>{_budgets(snap)}</section>')
     body.append(f'<section class="card"><h2>Insights</h2>{_insights(snap)}</section>')
     body.append(f'<section class="card"><h2>Subscriptions · {_e(fmt(snap["subscriptions_monthly_cents"]))}/month</h2>'
                 f'{_series_table(snap["subscriptions"], "no subscriptions detected yet")}</section>')

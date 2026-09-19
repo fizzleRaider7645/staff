@@ -10,7 +10,7 @@ import getpass
 import json
 import sys
 
-from ledger import __version__, categorize, config, credentials, db, reports, simplefin, sync
+from ledger import __version__, categorize, config, credentials, db, reports, review, simplefin, sync
 from ledger.money import epoch_to_date, fmt, month_of, parse_cents
 
 EXIT_OK, EXIT_ERROR, EXIT_NOT_SET_UP, EXIT_BUDGET = 0, 1, 2, 3
@@ -94,6 +94,16 @@ def cmd_setup(args) -> int:
 def cmd_sync(args) -> int:
     url = require_access_url()
     conn = open_db()
+    if getattr(args, "gaps", False):
+        gaps = sync.backfill_gaps(conn, url, db.now_epoch(), simplefin.fetch_accounts)
+        categorize.categorize(conn)
+        emit(args, {"gaps": gaps}, lambda: (
+            table([[g["name"], g["requested_from"], g["requested_to"], g["missing_days"], g["gained"]]
+                   for g in gaps], ["ACCOUNT", "FROM", "TO", "DAYS MISSING", "RECOVERED"], right={3, 4}),
+            print("\nnothing recovered — the bridge has no history from before these accounts were linked"
+                  if gaps and not any(g["gained"] for g in gaps) else
+                  "no accounts are missing history" if not gaps else "")))
+        return EXIT_OK
     try:
         results = sync.run(conn, url, max_requests=args.max_requests)
     except sync.BudgetExhausted as e:
@@ -195,7 +205,24 @@ def cmd_categorize(args) -> int:
         n = categorize.set_category(conn, args.ids, args.category, source=args.source)
         emit(args, {"updated": n, "category": args.category}, lambda: print(f"{n} transaction(s) -> {args.category}"))
         return EXIT_OK
-    n = categorize.categorize(conn, only_uncategorized=not args.all)
+    if args.categorize_cmd == "reconcile-sources":
+        moved = categorize.reconcile_sources(conn, apply=args.apply)
+        verb = "restamped" if args.apply else "would be restamped"
+        emit(args, {"rows": moved, "applied": args.apply},
+             lambda: (table([[m["id"][:16], m["description"][:34], m["category"], m["rule_id"]]
+                             for m in moved], ["ID", "DESCRIPTION", "CATEGORY", "RULE"], right={3}),
+                      print(f"\n{len(moved)} row(s) {verb} as rule output"
+                            + ("" if args.apply else "; re-run with --apply"))))
+        return EXIT_OK
+    if args.dry_run:
+        rows = categorize.preview(conn, include_user=False)
+        emit(args, {"changes": rows},
+             lambda: (table([[r["date"], r["description"][:30], fmt(r["amount_cents"]),
+                              r["from"] or "-", r["to"] or "-", (r["reason"] or "")[:28]] for r in rows],
+                            ["DATE", "DESCRIPTION", "AMOUNT", "FROM", "TO", "WHY"], right={2}),
+                      print(f"\n{len(rows)} transaction(s) would change")))
+        return EXIT_OK
+    n = categorize.categorize(conn, only_uncategorized=not (args.all or args.repair))
     left = reports.uncategorized_payees(conn)
 
     def human():
@@ -228,6 +255,35 @@ def cmd_rules(args) -> int:
     emit(args, {"rules": rules},
          lambda: table([[r["id"], r["match_type"], r["pattern"], r["category"], r["source"], r["hits"]] for r in rules],
                        ["ID", "TYPE", "PATTERN", "CATEGORY", "SOURCE", "HITS"], right={0, 5}))
+    return EXIT_OK
+
+
+def cmd_review(args) -> int:
+    """What the classifier decided and what looks wrong about it."""
+    conn = open_db()
+    rep = review.report(conn, month=args.month)
+
+    def human():
+        groups = rep["reason_groups"][:args.limit]
+        print("what the categories are built on")
+        table([[g["category"], g["reason"][:34], g["count"], fmt(g["spent_cents"]),
+                (g["samples"] or "").split(" | ")[0][:30]] for g in groups],
+              ["CATEGORY", "WHY", "N", "SPENT", "EXAMPLE"], right={2, 3})
+        if rep["anomalies"]:
+            print("\nworth a second look")
+            for a in rep["anomalies"]:
+                amount = f"  {fmt(a['amount_cents'])}" if a["amount_cents"] else ""
+                print(f"[{a['severity']}] {a['detail']}{amount}")
+                if a["evidence"]:
+                    print(f"    ledger categorize set {' '.join(a['evidence'][:3])} --category <name>")
+                elif a["payee"]:
+                    print(f"    ledger transactions --payee {a['payee']!r}")
+        if rep["uncategorized"]:
+            print("\nstill uncategorized")
+            table([[p["payee"], p["count"], fmt(p["net_cents"]), p["example"][:38]]
+                   for p in rep["uncategorized"]], ["PAYEE", "N", "NET", "EXAMPLE"], right={1, 2})
+        print("\nre-derive everything automation chose: ledger categorize --repair --dry-run")
+    emit(args, rep, human)
     return EXIT_OK
 
 
@@ -293,6 +349,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--max-requests", type=int, default=6, metavar="N", help="SimpleFIN requests this run may spend (default 6)")
     s.add_argument("--no-dashboard", action="store_true", help="skip regenerating the dashboard")
     s.add_argument("--export", action="store_true", help="also write the Cowork export (see: ledger export)")
+    s.add_argument("--gaps", action="store_true",
+                   help="ask the bridge again for history that accounts linked later are missing")
     s.set_defaults(fn=cmd_sync)
 
     s = sub.add_parser("accounts", help="list accounts and net worth")
@@ -316,7 +374,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("categorize", help="apply rules and heuristics to uncategorized transactions")
     s.add_argument("--all", action="store_true", help="re-run on everything not set by hand")
+    s.add_argument("--repair", action="store_true",
+                   help="re-derive every category the rules and heuristics chose, leaving hand-set ones alone")
+    s.add_argument("--dry-run", action="store_true", help="show what would change, and why, without changing it")
     ss = s.add_subparsers(dest="categorize_cmd")
+    ss.add_parser("reconcile-sources",
+                  help="find rows a rule decided that are recorded as hand-set"
+                  ).add_argument("--apply", action="store_true", help="restamp them instead of listing them")
     st = ss.add_parser("set", help="set a category on specific transactions")
     st.add_argument("ids", nargs="+", metavar="TX_ID")
     st.add_argument("--category", required=True)
@@ -331,6 +395,11 @@ def build_parser() -> argparse.ArgumentParser:
     r = ss.add_parser("remove"); r.add_argument("id", type=int)
     ss.add_parser("list")
     s.set_defaults(fn=cmd_rules)
+
+    s = sub.add_parser("review", help="what the categories are built on, and what looks wrong")
+    s.add_argument("--month", metavar="YYYY-MM", help="restrict to one month")
+    s.add_argument("--limit", type=int, default=25, help="how many reason groups to show")
+    s.set_defaults(fn=cmd_review)
 
     s = sub.add_parser("report", help="monthly income, spending and categories")
     s.add_argument("--month", metavar="YYYY-MM")
@@ -350,7 +419,8 @@ def register_extra(parser: argparse.ArgumentParser) -> None:
     for action in parser._actions:  # noqa: SLF001 - argparse has no public accessor
         if isinstance(action, argparse._SubParsersAction):  # noqa: SLF001
             sub = action
-    for modname in ("ledger.insights.cli", "ledger.mcp_cli", "ledger.dashboard_cli", "ledger.schedule"):
+    for modname in ("ledger.insights.cli", "ledger.budget_cli", "ledger.mcp_cli",
+                    "ledger.dashboard_cli", "ledger.schedule"):
         try:
             mod = __import__(modname, fromlist=["add_commands"])
         except ImportError:

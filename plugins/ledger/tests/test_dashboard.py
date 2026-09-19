@@ -51,3 +51,17 @@ def test_snapshot_and_render(conn, home):
 def test_empty_database_renders(conn):
     html_out = dashboard.render(dashboard.build_snapshot(conn, NOW))
     assert "no accounts yet" in html_out and "no sync yet" in html_out
+
+
+def test_the_dashboard_shows_budgets_and_what_they_do_not_cover(conn):
+    from conftest import insert_account, insert_tx
+    from ledger import budgets, dashboard
+    insert_account(conn, "chk", "Checking", 500000)
+    insert_tx(conn, "a", "chk", "2026-09-05", -80000, "SHOP A", "Groceries")
+    insert_tx(conn, "b", "chk", "2026-09-06", -30000, "SHOP B", "Shopping")
+    budgets.set_budget(conn, "Groceries", 50000, start_month="2026-09", now=NOW)
+    snap = dashboard.build_snapshot(conn, NOW)
+    assert snap["budgets"]["over_count"] == 1
+    html = dashboard.render(snap)
+    assert "Budgets" in html and "Groceries" in html
+    assert "has no budget" in html, "spending outside every budget must be visible"

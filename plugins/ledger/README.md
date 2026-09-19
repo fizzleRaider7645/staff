@@ -82,9 +82,30 @@ dashboard into Cowork's folder on every sync.
   one window per spare request until five months of silence or two years.
   Ingestion is idempotent; bank-owned columns update, your categories stay.
   Pending charges are reconciled against their posted twins.
+- **Budgets** are a monthly cap per category. Unspent money carries into the
+  next month and an overspend carries as a debt, capped at three months of
+  budget so an unused category does not become an unlimited allowance. Carry is
+  derived by walking the months, never stored, so correcting a category
+  correctly changes every month that depended on it. Status reports the run
+  rate and the envelope separately: a category can be spending too fast this
+  month and still be fine because of what it carried in, and saying only one of
+  those is how a budget starts lying. `ledger budget suggest` proposes from
+  history and states what each proposal rests on — it refuses to average over a
+  month in which an account that carries the category was not yet reporting.
 - **Categories** come from rules (yours > Claude's > imported > heuristic),
   then a service catalog (Netflix, Spotify, PG&E…), then keyword heuristics.
   Transfers between your own accounts are paired and excluded from spending.
+  Keywords must land on token boundaries, because the obvious alternative files
+  GOMOBILEPGH under Gas and WINE AND SPIRITS under airlines. A descriptor whose
+  shape says internal transfer and which names an account you hold is money
+  moving whatever words it uses. A delivery platform is a channel, not a
+  merchant, so the shop is read out of the rest of the descriptor. Every row
+  records **why** it got its category, which is what makes a wrong one findable.
+- **`ledger review`** is for wrong categories rather than missing ones. It
+  groups rows by what decided them, so a whole wrong group is visible at once,
+  and runs structural checks that catch mistakes nobody anticipated: internal
+  transfers filed as spending, one payee split across categories, a category
+  that is really a single merchant.
   Nothing inside an investment or loan account counts as household spending
   or income: buying an ETF, a 401(k) contribution landing and a loan's
   disbursement are all movement, though a fee charged inside one is real.
