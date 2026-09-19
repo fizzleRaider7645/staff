@@ -195,7 +195,24 @@ def cmd_categorize(args) -> int:
         n = categorize.set_category(conn, args.ids, args.category, source=args.source)
         emit(args, {"updated": n, "category": args.category}, lambda: print(f"{n} transaction(s) -> {args.category}"))
         return EXIT_OK
-    n = categorize.categorize(conn, only_uncategorized=not args.all)
+    if args.categorize_cmd == "reconcile-sources":
+        moved = categorize.reconcile_sources(conn, apply=args.apply)
+        verb = "restamped" if args.apply else "would be restamped"
+        emit(args, {"rows": moved, "applied": args.apply},
+             lambda: (table([[m["id"][:16], m["description"][:34], m["category"], m["rule_id"]]
+                             for m in moved], ["ID", "DESCRIPTION", "CATEGORY", "RULE"], right={3}),
+                      print(f"\n{len(moved)} row(s) {verb} as rule output"
+                            + ("" if args.apply else "; re-run with --apply"))))
+        return EXIT_OK
+    if args.dry_run:
+        rows = categorize.preview(conn, include_user=False)
+        emit(args, {"changes": rows},
+             lambda: (table([[r["date"], r["description"][:30], fmt(r["amount_cents"]),
+                              r["from"] or "-", r["to"] or "-", (r["reason"] or "")[:28]] for r in rows],
+                            ["DATE", "DESCRIPTION", "AMOUNT", "FROM", "TO", "WHY"], right={2}),
+                      print(f"\n{len(rows)} transaction(s) would change")))
+        return EXIT_OK
+    n = categorize.categorize(conn, only_uncategorized=not (args.all or args.repair))
     left = reports.uncategorized_payees(conn)
 
     def human():
@@ -316,7 +333,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("categorize", help="apply rules and heuristics to uncategorized transactions")
     s.add_argument("--all", action="store_true", help="re-run on everything not set by hand")
+    s.add_argument("--repair", action="store_true",
+                   help="re-derive every category the rules and heuristics chose, leaving hand-set ones alone")
+    s.add_argument("--dry-run", action="store_true", help="show what would change, and why, without changing it")
     ss = s.add_subparsers(dest="categorize_cmd")
+    ss.add_parser("reconcile-sources",
+                  help="find rows a rule decided that are recorded as hand-set"
+                  ).add_argument("--apply", action="store_true", help="restamp them instead of listing them")
     st = ss.add_parser("set", help="set a category on specific transactions")
     st.add_argument("ids", nargs="+", metavar="TX_ID")
     st.add_argument("--category", required=True)

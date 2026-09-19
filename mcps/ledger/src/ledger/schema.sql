@@ -48,6 +48,9 @@ CREATE TABLE IF NOT EXISTS transactions (
   category_id     INTEGER,
   -- rule|user|claude|import|heuristic
   category_source TEXT,
+  -- what decided it: keyword:MOBIL, rule:17, transfer:own-account
+  category_reason TEXT,
+  category_rule_id INTEGER,
   ignored         INTEGER NOT NULL DEFAULT 0,
   superseded_by   TEXT,
   removed_at      INTEGER,

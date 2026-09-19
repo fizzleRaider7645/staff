@@ -34,13 +34,46 @@ def test_rules_beat_heuristics_and_user_beats_claude(conn):
     _seed(conn, [tx("a", "2026-09-01", "-15.99", "NETFLIX.COM")])
     categorize.add_rule(conn, "netflix", "Entertainment", source="claude")
     categorize.categorize(conn, only_uncategorized=False)
-    assert cat(conn, "a") == {"n": "Entertainment", "s": "claude"}
+    # A row a rule decided is stamped by the rule, not by the rule's author.
+    assert cat(conn, "a") == {"n": "Entertainment", "s": "rule"}
     categorize.add_rule(conn, "netflix", "Kids", source="user")
-    categorize.categorize(conn, only_uncategorized=False, include_user=True)
-    assert cat(conn, "a") == {"n": "Kids", "s": "user"}
+    categorize.categorize(conn, only_uncategorized=False)
+    assert cat(conn, "a") == {"n": "Kids", "s": "rule"}
     rules = categorize.list_rules(conn)
     assert [r["source"] for r in rules] == ["claude", "user"]
     assert [r["hits"] for r in rules] == [1, 1]
+
+
+def test_a_row_a_rule_got_wrong_can_still_be_fixed(conn):
+    # Stamping rule output with the rule's own source made it look hand-set,
+    # so the row froze and the only way back was editing the database.
+    _seed(conn, [tx("a", "2026-09-01", "-80.00", "TRADER JOE'S #123")])
+    rid = categorize.add_rule(conn, "trader joe's", "Travel", source="user")
+    categorize.categorize(conn, only_uncategorized=False)
+    assert cat(conn, "a")["n"] == "Travel"
+    categorize.remove_rule(conn, rid)
+    categorize.categorize(conn, only_uncategorized=False)
+    assert cat(conn, "a") == {"n": "Groceries", "s": "heuristic"}
+
+
+def test_a_category_set_by_hand_is_still_untouchable(conn):
+    _seed(conn, [tx("a", "2026-09-01", "-80.00", "TRADER JOE'S #123")])
+    categorize.set_category(conn, ["a"], "Kids", source="user")
+    categorize.categorize(conn, only_uncategorized=False)
+    assert cat(conn, "a") == {"n": "Kids", "s": "user"}
+
+
+def test_every_categorized_row_records_why(conn):
+    _seed(conn, [
+        tx("a", "2026-09-01", "-15.99", "NETFLIX.COM"),
+        tx("b", "2026-09-01", "-80.00", "TRADER JOE'S #123"),
+        tx("c", "2026-09-01", "-35.00", "OVERDRAFT FEE"),
+    ])
+    why = {r["id"]: r["category_reason"] for r in db.rows(
+        conn, "SELECT id, category_reason FROM transactions")}
+    assert why["a"] == "service:netflix"
+    assert why["b"] == "keyword:TRADER JOE"
+    assert why["c"].startswith("fee:")
 
 
 def test_hand_set_category_is_never_overwritten(conn):

@@ -32,8 +32,34 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     return conn
 
 
+# Columns added after a database already existed. schema.sql only runs
+# CREATE TABLE IF NOT EXISTS, so a new column in it reaches new databases and
+# no other; these are applied to every database on open.
+ADDED_COLUMNS: dict[str, dict[str, str]] = {
+    "transactions": {
+        # Why this row has the category it has: "keyword:MOBIL", "rule:17",
+        # "transfer:own-account". Without it a wrong category is invisible.
+        "category_reason": "TEXT",
+        "category_rule_id": "INTEGER",
+    },
+}
+
+
+def ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> list[str]:
+    """ALTER TABLE ADD COLUMN for anything PRAGMA table_info does not report."""
+    have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+    added = []
+    for name, decl in columns.items():
+        if name not in have:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+            added.append(name)
+    return added
+
+
 def migrate(conn: sqlite3.Connection) -> None:
     conn.executescript((_HERE / "schema.sql").read_text())
+    for table, columns in ADDED_COLUMNS.items():
+        ensure_columns(conn, table, columns)
     if get_meta(conn, "schema_version") is None:
         set_meta(conn, "schema_version", SCHEMA_VERSION)
     seed_categories(conn)

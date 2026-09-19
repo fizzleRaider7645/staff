@@ -289,83 +289,109 @@ def is_internal_transfer(description: str, own: dict | None) -> bool:
     return bool(TRANSFER_SHAPE.search(desc)) and names_own_account(desc, own)
 
 
-def _delivery_category(description: str) -> str | None:
+def _delivery_category(description: str) -> tuple[str | None, str | None]:
     """The shop behind a delivery order, if it can be recognized."""
     desc = (description or "").strip()
     remainder = DELIVERY_PREFIX.sub("", desc, count=1).strip()
     if not remainder or remainder == desc:
-        return None
+        return None, None
     svc = catalog.match_service(remainder)
     if svc and svc.get("category"):
-        return svc["category"]
+        return svc["category"], f"delivery:{remainder}:service:{svc['id']}"
     for name, keywords in KEYWORDS:
-        if match.any_mention(remainder, keywords):
-            return name
+        hit = match.first_mention(remainder, keywords)
+        if hit:
+            return name, f"delivery:{remainder}:keyword:{hit}"
     # Processors truncate the shop and drop its spaces: THEHOMEDE, GIANTEAGL.
     for name, keywords in KEYWORDS:
-        if any(match.squashed_match(remainder, k) for k in keywords):
-            return name
-    return DELIVERY_DEFAULT
+        for k in keywords:
+            if match.squashed_match(remainder, k):
+                return name, f"delivery:{remainder}:truncated:{k}"
+    return DELIVERY_DEFAULT, f"delivery:{remainder}:unrecognized"
 
 
 def heuristic_category(description: str, amount_cents: int, key: str | None = None,
                        account_kind: str | None = None, own_issuers: set[str] | None = None,
                        own: dict | None = None) -> str | None:
+    name, _ = heuristic_with_reason(description, amount_cents, key, account_kind, own_issuers, own)
+    return name
+
+
+def heuristic_with_reason(description: str, amount_cents: int, key: str | None = None,
+                          account_kind: str | None = None, own_issuers: set[str] | None = None,
+                          own: dict | None = None) -> tuple[str | None, str | None]:
+    """The category and the reason it was chosen.
+
+    The reason is the whole point of the pair: a category on its own cannot be
+    audited, while "Gas because the keyword MOBIL matched" can be scanned by
+    eye and the wrong ones picked out in seconds.
+    """
     desc = (description or "").upper()
     svc = catalog.match_service(desc)
     # First, because "Overdraft: To Checking - 9538" is money moving while
     # "OVERDRAFT FEE" is a charge, and only the shape tells them apart.
     if is_internal_transfer(desc, own):
-        return "Transfer"
+        return "Transfer", "transfer:own-account"
     # A bare FEE catches what the list does not — "Robo Management Fee",
     # "Origination Fee" — and COFFEE is safe, since a letter may not precede.
-    if match.any_mention(desc, FEE_KEYWORDS) or match.any_mention(desc, ("FEE", "FEES")):
-        return "Fees & Interest"
+    fee = match.first_mention(desc, FEE_KEYWORDS) or match.first_mention(desc, ("FEE", "FEES"))
+    if fee:
+        return "Fees & Interest", f"fee:{fee}"
     if account_kind in ("investment", "loan"):
         # Money moving inside a brokerage, a retirement plan or a loan is not
         # household cash flow: buying an ETF is not spending, a 401(k)
         # contribution landing is not income, and a loan's disbursement is
         # neither. Fees charged inside one are real, and were caught above.
-        return "Transfer"
-    if match.any_mention(desc, TRANSFER_KEYWORDS):
-        return "Transfer"
-    if match.any_mention(desc, CARD_PAYMENT_KEYWORDS):
+        return "Transfer", f"account-kind:{account_kind}"
+    moved = match.first_mention(desc, TRANSFER_KEYWORDS)
+    if moved:
+        return "Transfer", f"transfer:{moved}"
+    card = match.first_mention(desc, CARD_PAYMENT_KEYWORDS)
+    if card:
         # Paying a card the ledger already holds is a transfer. Paying one it
         # does not is the only trace of that spending, so it stays an expense.
-        if own_issuers and match.any_mention(desc, own_issuers):
-            return "Transfer"
-        return "Card Payments"
-    if amount_cents > 0 and match.any_mention(desc, INCOME_KEYWORDS):
-        return "Income"
-    delivered = _delivery_category(desc)
+        issuer = match.first_mention(desc, own_issuers) if own_issuers else None
+        if issuer:
+            return "Transfer", f"card-payment:{card}:own-issuer:{issuer}"
+        return "Card Payments", f"card-payment:{card}"
+    earned = match.first_mention(desc, INCOME_KEYWORDS) if amount_cents > 0 else None
+    if earned:
+        return "Income", f"income:{earned}"
+    delivered, why = _delivery_category(desc)
     if delivered:
-        return delivered
+        return delivered, why
     if svc and svc.get("category"):
-        return svc["category"]
+        return svc["category"], f"service:{svc['id']}"
     for name, keywords in KEYWORDS:
-        if match.any_mention(desc, keywords):
-            return name
-    if amount_cents > 0 and match.any_mention(desc, ("INTEREST", "CREDIT")):
-        return "Income"
-    return None
+        hit = match.first_mention(desc, keywords)
+        if hit:
+            return name, f"keyword:{hit}"
+    credited = match.first_mention(desc, ("INTEREST", "CREDIT")) if amount_cents > 0 else None
+    if credited:
+        return "Income", f"income:{credited}"
+    return None, None
 
 
 def decide(conn: sqlite3.Connection, rules: list[dict], description: str, key: str,
            amount_cents: int, account_kind: str | None = None,
            own_issuers: set[str] | None = None,
-           own: dict | None = None) -> tuple[int | None, str | None, dict | None]:
-    """(category_id, source, matching_rule) for one transaction."""
+           own: dict | None = None) -> tuple[int | None, str | None, dict | None, str | None]:
+    """(category_id, source, matching_rule, reason) for one transaction."""
     for rule in rules:
         if rule_matches(rule, description, key):
-            return rule["category_id"], rule["source"] if rule["source"] != "heuristic" else "rule", rule
+            # Stamped by the rule, not by its author. A row a rule decided has
+            # to stay re-derivable: stamping it 'user' made it indistinguishable
+            # from a category set by hand and froze it against every later fix,
+            # which is exactly backwards when the rule itself is the mistake.
+            return rule["category_id"], "rule", rule, f"rule:{rule['id']}"
     if own_issuers is None:
         own_issuers = own_debt_issuers(conn)
     if own is None:
         own = own_accounts(conn)
-    name = heuristic_category(description, amount_cents, key, account_kind, own_issuers, own)
+    name, why = heuristic_with_reason(description, amount_cents, key, account_kind, own_issuers, own)
     if name:
-        return category_id(conn, name), "heuristic", None
-    return None, None, None
+        return category_id(conn, name), "heuristic", None, why
+    return None, None, None, None
 
 
 def categorize(conn: sqlite3.Connection, *, only_uncategorized: bool = True,
@@ -390,12 +416,14 @@ def categorize(conn: sqlite3.Connection, *, only_uncategorized: bool = True,
            "FROM transactions t LEFT JOIN accounts a ON a.id = t.account_id WHERE ")
     for row in db.rows(conn, sql + " AND ".join(where), params):
         key = row["payee_key"] or payee_key(row["description"])
-        cid, source, rule = decide(conn, rules, row["description"], key, row["amount_cents"],
-                                   row["account_kind"], issuers, own)
+        cid, source, rule, why = decide(conn, rules, row["description"], key, row["amount_cents"],
+                                        row["account_kind"], issuers, own)
         if cid is None or cid == row["category_id"]:
             continue
-        conn.execute("UPDATE transactions SET category_id = ?, category_source = ? WHERE id = ?",
-                     (cid, source, row["id"]))
+        conn.execute(
+            """UPDATE transactions SET category_id = ?, category_source = ?, category_reason = ?,
+                 category_rule_id = ? WHERE id = ?""",
+            (cid, source, why, rule["id"] if rule else None, row["id"]))
         if rule:
             conn.execute("UPDATE rules SET hits = hits + 1 WHERE id = ?", (rule["id"],))
         changed += 1
@@ -404,12 +432,72 @@ def categorize(conn: sqlite3.Connection, *, only_uncategorized: bool = True,
     return changed
 
 
+def reconcile_sources(conn: sqlite3.Connection, *, apply: bool = False) -> list[dict]:
+    """Restamp rows that a rule decided but that are recorded as hand-set.
+
+    Rule output used to carry the rule author's source, so rows a rule got
+    wrong are sitting in the database indistinguishable from categories the
+    user chose, and frozen against repair. A row is only restamped when a rule
+    still matches it *and* its current category is what that rule produces;
+    anything else is left alone, because it might really have been hand-set.
+    """
+    rules = load_rules(conn)
+    moved = []
+    for row in db.rows(conn, """
+            SELECT t.id, t.description, t.payee_key, t.category_id, t.category_source, c.name AS category
+            FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
+            WHERE t.removed_at IS NULL AND t.category_source IN ('user', 'claude')"""):
+        key = row["payee_key"] or payee_key(row["description"])
+        for rule in rules:
+            if rule_matches(rule, row["description"], key) and rule["category_id"] == row["category_id"]:
+                moved.append({"id": row["id"], "description": row["description"],
+                              "category": row["category"], "was": row["category_source"],
+                              "rule_id": rule["id"]})
+                if apply:
+                    conn.execute(
+                        """UPDATE transactions SET category_source = 'rule', category_reason = ?,
+                             category_rule_id = ? WHERE id = ?""",
+                        (f"rule:{rule['id']}", rule["id"], row["id"]))
+                break
+    if apply:
+        conn.commit()
+    return moved
+
+
+def preview(conn: sqlite3.Connection, *, include_user: bool = False) -> list[dict]:
+    """What a re-derivation would change, without changing it."""
+    rules = load_rules(conn)
+    issuers = own_debt_issuers(conn)
+    own = own_accounts(conn)
+    where = ["t.removed_at IS NULL"]
+    if not include_user:
+        where.append("(t.category_source IS NULL OR t.category_source NOT IN ('user','claude'))")
+    out = []
+    for row in db.rows(conn, """
+            SELECT t.id, t.posted_date, t.description, t.payee_key, t.amount_cents, t.category_id,
+                   a.kind AS account_kind, c.name AS current
+            FROM transactions t LEFT JOIN accounts a ON a.id = t.account_id
+            LEFT JOIN categories c ON c.id = t.category_id
+            WHERE """ + " AND ".join(where)):
+        key = row["payee_key"] or payee_key(row["description"])
+        cid, _source, _rule, why = decide(conn, rules, row["description"], key, row["amount_cents"],
+                                          row["account_kind"], issuers, own)
+        if cid == row["category_id"]:
+            continue
+        out.append({"id": row["id"], "date": row["posted_date"], "description": row["description"],
+                    "amount_cents": row["amount_cents"], "from": row["current"],
+                    "to": category_name(conn, cid), "reason": why})
+    return out
+
+
 def set_category(conn: sqlite3.Connection, tx_ids: list[str], category: str, source: str = "user") -> int:
     cid = category_id(conn, category, create=True)
     n = 0
     for tid in tx_ids:
-        cur = conn.execute("UPDATE transactions SET category_id = ?, category_source = ? WHERE id = ?",
-                           (cid, source, tid))
+        cur = conn.execute(
+            """UPDATE transactions SET category_id = ?, category_source = ?, category_reason = ?,
+                 category_rule_id = NULL WHERE id = ?""",
+            (cid, source, f"set-by:{source}", tid))
         n += cur.rowcount
     conn.commit()
     return n
@@ -439,8 +527,10 @@ def pair_transfers(conn: sqlite3.Connection, days: int = 3) -> int:
                 continue
             if abs(other["posted"] - c["posted"]) <= window:
                 for tid in (c["id"], other["id"]):
-                    conn.execute("UPDATE transactions SET category_id = ?, category_source = 'heuristic' WHERE id = ?",
-                                 (transfer, tid))
+                    conn.execute(
+                        """UPDATE transactions SET category_id = ?, category_source = 'heuristic',
+                             category_reason = 'transfer:paired' WHERE id = ?""",
+                        (transfer, tid))
                     used.add(tid)
                 changed += 2
                 break
