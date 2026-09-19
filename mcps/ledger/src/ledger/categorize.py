@@ -23,37 +23,67 @@ INCOME_KEYWORDS = ("PAYROLL", "DIRECT DEP", "DIRECTDEP", "SALARY", "PAYCHECK", "
 TRANSFER_KEYWORDS = ("TRANSFER", "XFER", "ZELLE", "VENMO", "CASH APP", "CASHAPP",
                      "ONLINE PAYMENT THANK YOU", "AUTOPAY PAYMENT", "PAYMENT - THANK YOU",
                      "PAYMENT THANK YOU", "AUTOMATIC PAYMENT", "CREDIT CARD PAYMENT",
-                     "EPAYMENT", "E-PAYMENT", "MOBILE PAYMENT", "INTERNET PAYMENT")
+                     "EPAYMENT", "E-PAYMENT", "MOBILE PAYMENT", "INTERNET PAYMENT",
+                     "ELECTRONIC PAYMENT",
+                     # Banks abbreviate "payment" as often as they spell it.
+                     "AUTOPAY PYMT", "MOBILE PYMT", "ONLINE PYMT", "PYMT THANK",
+                     # Borrowed money arriving is not income.
+                     # "DISB" also catches the abbreviated form banks use,
+                     # e.g. "ACH: SOFI PL DISB".
+                     "DISB", "LOAN PROCEEDS", "LOAN ADVANCE")
+# Paying a card or lender that is not connected to the ledger. The purchases
+# behind it are invisible, so calling it a transfer would delete the spending
+# from the record entirely; it stays an expense until the other side shows up,
+# at which point pair_transfers reclassifies both halves.
+CARD_PAYMENT_KEYWORDS = ("APPLECARD", "GSBANK", "BARCLAYCARD", "BILT CARD", "BILT REWARDS",
+                         "CARDMEMBER SERV", "CHASE CREDIT CRD", "CITI AUTOPAY", "CITI CARD",
+                         "CITICARD", "AMEX EPAYMENT", "DISCOVER E-PAYMENT", "BK OF AMER CRD",
+                         "WF CREDIT CARD", "COMENITY", "BREAD FINANCIAL")
 
 KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
     ("Groceries", ("SAFEWAY", "TRADER JOE", "WHOLE FOODS", "WHOLEFDS", "KROGER", "ALBERTSONS",
                    "PUBLIX", "WEGMANS", "H-E-B", "HEB ", "ALDI", "SPROUTS", "RALPHS", "VONS",
                    "GROCERY", "MARKET", "FOOD LION", "STOP & SHOP", "GIANT", "MEIJER", "WINCO",
-                   "LUCKY", "INSTACART")),
+                   "LUCKY", "INSTACART", "SAM'S CLUB", "SAMS CLUB", "SAMSCLUB",
+                   "BJ'S WHOLESALE", "BJS WHOLESALE")),
     ("Dining", ("RESTAURANT", "CAFE", "COFFEE", "PIZZA", "DOORDASH", "UBER EATS", "UBEREATS",
                 "GRUBHUB", "STARBUCKS", "CHIPOTLE", "MCDONALD", "TACO", "BURGER", "SUSHI",
                 "BAKERY", "DELI", "KITCHEN", "GRILL", "BISTRO", "DINER", "BAR ", "PUB ",
                 "BREWING", "BREWERY", "PANERA", "SUBWAY", "WENDY", "CHICK-FIL", "DUNKIN",
                 "PEET", "BLUE BOTTLE", "PHILZ", "SWEETGREEN", "CAVA", "EATS", "RAMEN",
-                "NOODLE", "THAI", "PHO ", "BBQ", "STEAK")),
+                "NOODLE", "THAI", "PHO ", "BBQ", "STEAK", "ROADHOUSE", "DENNY",
+                "CHILI'S", "ICE CREAM", "CREAMERY", "LIQUOR", "WINE & SPIRITS",
+                "BEER DIST", "TAVERN", "SALOON")),
     ("Transportation", ("UBER", "LYFT", "PARKING", "TOLL", "TRANSIT", "MTA", "BART", "METRO",
                         "CALTRAIN", "AMTRAK", "PARKMOBILE", "CLIPPER", "DMV", "CAR WASH",
-                        "AUTO REPAIR", "JIFFY LUBE", "TIRE", "AUTOZONE", "O'REILLY")),
+                        "AUTO REPAIR", "JIFFY LUBE", "TIRE", "AUTOZONE", "O'REILLY",
+                        "AUTO DETAIL", "DETAILING", "U-HAUL", "UHAUL", "TOYOTA",
+                        "HONDA FINANCIAL", "FORD CREDIT", "GM FINANCIAL", "VW CREDIT",
+                        "NISSAN MOTOR ACCEPT", "CHRYSLER CAPITAL", "ALLY AUTO",
+                        "AUTO LEASE", "CARMAX", "CARVANA")),
     ("Gas", ("SHELL", "CHEVRON", "EXXON", "MOBIL", "ARCO", "76 ", "CIRCLE K", "VALERO",
              "SUNOCO", "MARATHON", "SPEEDWAY", "WAWA", "FUEL", "GAS STATION", "COSTCO GAS",
-             "BP#", "BP ", "TEXACO", "CITGO", "PHILLIPS 66")),
+             "BP#", "BP ", "TEXACO", "CITGO", "PHILLIPS 66", "GET GO", "GETGO",
+             "GAS N GO", "SHEETZ", "RUTTER", "TURKEY HILL", "QUIKTRIP", "KWIK")),
     ("Utilities", ("PG&E", "PGE", "PACIFIC GAS", "ELECTRIC", "EDISON", "CON ED", "DUKE ENERGY",
                    "WATER", "SEWER", "UTILITY", "UTILITIES", "INTERNET", "WIRELESS", "ENERGY",
-                   "POWER", "SANITATION", "WASTE MANAGEMENT", "RECOLOGY")),
+                   "POWER", "SANITATION", "WASTE MANAGEMENT", "RECOLOGY", "DUQUESNE",
+                   "PPL ELECTRIC", "FIRSTENERGY", "NATIONAL GRID", "DOMINION ENERGY",
+                   "AMEREN", "XCEL", "PECO", "COMED", "EVERSOURCE", "NICOR",
+                   "COLUMBIA GAS", "NATURAL GAS", "GAS COMPANY")),
     ("Housing", ("RENT", "MORTGAGE", "HOA ", "PROPERTY MGMT", "PROPERTY MANAGEMENT",
-                 "APARTMENTS", "REALTY", "LEASING")),
+                 "APARTMENTS", "REALTY", "LEASING", "GUARANTEED RATE", "ROCKET MORTGAGE",
+                 "MR COOPER", "LOANDEPOT", "PENNYMAC", "NEWREZ", "SHELLPOINT",
+                 "TASKRABBIT", "ANGI ", "THUMBTACK")),
     ("Health", ("PHARMACY", "CVS", "WALGREENS", "RITE AID", "MEDICAL", "DENTAL", "DENTIST",
                 "CLINIC", "HOSPITAL", "OPTOMETRY", "OPTICAL", "PHYSICIAN", "THERAPY",
                 "URGENT CARE", "KAISER", "LABCORP", "QUEST DIAG", "GYM", "FITNESS", "YOGA",
-                "CROSSFIT", "ORTHO")),
+                "CROSSFIT", "ORTHO", "UPMC", "HEALTHCARE", "HEALTH SERVICES",
+                "HEALTH SYSTEM", "BLUECHEW", "TELEHEALTH")),
     ("Insurance", ("INSURANCE", "GEICO", "STATE FARM", "PROGRESSIVE", "ALLSTATE", "FARMERS INS",
                    "LIBERTY MUTUAL", "USAA", "LEMONADE", "METLIFE", "AETNA", "ANTHEM",
-                   "BLUE CROSS", "BLUE SHIELD", "CIGNA", "UNITEDHEALTH")),
+                   "BLUE CROSS", "BLUE SHIELD", "CIGNA", "UNITEDHEALTH", "TRAVELERS",
+                   "NATIONWIDE", "ERIE INS", "AMICA", "THE HARTFORD", "PLYMOUTH ROCK")),
     ("Travel", ("AIRLINE", "AIRLINES", "UNITED", "DELTA", "AMERICAN AIR", "SOUTHWEST", "JETBLUE",
                 "ALASKA AIR", "SPIRIT", "FRONTIER", "HOTEL", "MARRIOTT", "HILTON", "HYATT",
                 "AIRBNB", "VRBO", "HERTZ", "AVIS", "ENTERPRISE RENT", "BOOKING.COM", "EXPEDIA",
@@ -63,7 +93,10 @@ KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
                   "OLD NAVY", "H&M", "ZARA", "UNIQLO", "NIKE", "ADIDAS", "REI", "APPLE STORE",
                   "APPLE.COM", "ETSY", "EBAY", "WAYFAIR", "CRATE", "WILLIAMS-SONOMA",
                   "SEPHORA", "ULTA", "TJ MAXX", "TJMAXX", "MARSHALLS", "ROSS", "DOLLAR",
-                  "STAPLES", "OFFICE DEPOT", "MICRO CENTER", "SHOP")),
+                  "STAPLES", "OFFICE DEPOT", "MICRO CENTER", "SHOP", "VINTED",
+                  "POSHMARK", "DEPOP", "MERCARI", "THREDUP", "JCPENNEY", "JC PENNEY",
+                  "KOHL", "DILLARD", "AFFIRM", "KLARNA", "AFTERPAY", "HARDWARE",
+                  "ACE HDWE", "TRUE VALUE", "MENARDS", "TRACTOR SUPPLY")),
     ("Entertainment", ("CINEMA", "THEATRE", "THEATER", "AMC", "REGAL", "TICKETMASTER",
                        "STUBHUB", "STEAM", "STEAMGAMES", "NINTENDO", "PLAYSTATION", "XBOX",
                        "CONCERT", "MUSEUM", "ZOO", "AQUARIUM", "BOWLING", "GOLF", "SKI",
@@ -76,12 +109,15 @@ KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
     ("Gifts & Donations", ("DONATION", "CHARITY", "GOFUNDME", "RED CROSS", "UNICEF",
                            "FOUNDATION", "CHURCH", "TEMPLE", "MOSQUE", "SYNAGOGUE", "WIKIMEDIA")),
     ("Pets", ("PETCO", "PETSMART", "CHEWY", "VETERINARY", "VET ", "ANIMAL HOSPITAL", "PET ")),
-    ("Kids", ("DAYCARE", "CHILDCARE", "PRESCHOOL", "TOYS", "BABY", "PEDIATRIC")),
+    ("Kids", ("DAYCARE", "CHILDCARE", "PRESCHOOL", "TOYS", "BABY", "PEDIATRIC",
+              "BRIGHTWHEEL", "BRGHTWHL", "KINDERCARE", "BRIGHT HORIZONS", "GODDARD",
+              "MONTESSORI", "TUITION EXPRESS", "PRIMROSE SCHOOL")),
     ("Taxes", ("IRS", "TAX PAYMENT", "FRANCHISE TAX", "DEPT OF REVENUE", "TURBOTAX", "H&R BLOCK",
                "PROPERTY TAX", "TAX COLLECTOR")),
     ("Cash & ATM", ("ATM", "CASH WITHDRAWAL", "WITHDRAWAL", "CHECK ")),
     ("Investments", ("VANGUARD", "FIDELITY", "SCHWAB", "ROBINHOOD", "BETTERMENT", "WEALTHFRONT",
-                     "E*TRADE", "ETRADE", "COINBASE", "ACORNS", "401K", "IRA ", "BROKERAGE")),
+                     "E*TRADE", "ETRADE", "COINBASE", "ACORNS", "401K", "IRA ", "BROKERAGE",
+                     "ISHARES", "SPDR", "INVESCO", " ETF", "INDEX FUND", "MUTUAL FUND")),
     ("Business", ("FEDEX", "UPS ", "USPS", "SHIPPING", "SQUARESPACE", "GODADDY", "NAMECHEAP",
                   "HEROKU", "AWS", "AMAZON WEB SERVICES", "DIGITALOCEAN", "VERCEL",
                   "CLOUDFLARE", "GOOGLE CLOUD", "LINKEDIN", "UPWORK")),
@@ -170,13 +206,49 @@ def list_rules(conn: sqlite3.Connection) -> list[dict]:
 
 # --- heuristics --------------------------------------------------------
 
-def heuristic_category(description: str, amount_cents: int, key: str | None = None) -> str | None:
+# Words too generic to identify an institution.
+_GENERIC_ORG_WORDS = {"BANK", "CARD", "CARDS", "CREDIT", "FINANCIAL", "FINANCE", "INVESTMENTS",
+                      "SAVINGS", "FEDERAL", "NATIONAL", "UNION", "TRUST", "GROUP", "SERVICES",
+                      "COMPANY", "CORP", "HOLDINGS", "AMERICA", "USA"}
+
+
+def own_debt_issuers(conn: sqlite3.Connection) -> set[str]:
+    """Institutions where the ledger already holds a card or a loan.
+
+    A payment to one of those is money moving between accounts that are both
+    on file, even when the two halves never match exactly — partial payments
+    and statement timing keep pair_transfers from seeing them as a pair.
+    """
+    out: set[str] = set()
+    for r in conn.execute("""SELECT DISTINCT c.name FROM accounts a
+                             JOIN connections c ON c.conn_id = a.conn_id
+                             WHERE a.kind IN ('credit', 'loan')"""):
+        for word in re.split(r"[^A-Za-z0-9]+", (r["name"] or "").upper()):
+            if len(word) >= 4 and word not in _GENERIC_ORG_WORDS:
+                out.add(word)
+    return out
+
+
+def heuristic_category(description: str, amount_cents: int, key: str | None = None,
+                       account_kind: str | None = None, own_issuers: set[str] | None = None) -> str | None:
     desc = (description or "").upper()
     svc = catalog.match_service(desc)
     if any(k in desc for k in FEE_KEYWORDS):
         return "Fees & Interest"
+    if account_kind in ("investment", "loan"):
+        # Money moving inside a brokerage, a retirement plan or a loan is not
+        # household cash flow: buying an ETF is not spending, a 401(k)
+        # contribution landing is not income, and a loan's disbursement is
+        # neither. Fees charged inside one are real, and were caught above.
+        return "Transfer"
     if any(k in desc for k in TRANSFER_KEYWORDS):
         return "Transfer"
+    if any(k in desc for k in CARD_PAYMENT_KEYWORDS):
+        # Paying a card the ledger already holds is a transfer. Paying one it
+        # does not is the only trace of that spending, so it stays an expense.
+        if own_issuers and any(w in desc for w in own_issuers):
+            return "Transfer"
+        return "Card Payments"
     if amount_cents > 0 and any(k in desc for k in INCOME_KEYWORDS):
         return "Income"
     if svc and svc.get("category"):
@@ -190,12 +262,15 @@ def heuristic_category(description: str, amount_cents: int, key: str | None = No
 
 
 def decide(conn: sqlite3.Connection, rules: list[dict], description: str, key: str,
-           amount_cents: int) -> tuple[int | None, str | None, dict | None]:
+           amount_cents: int, account_kind: str | None = None,
+           own_issuers: set[str] | None = None) -> tuple[int | None, str | None, dict | None]:
     """(category_id, source, matching_rule) for one transaction."""
     for rule in rules:
         if rule_matches(rule, description, key):
             return rule["category_id"], rule["source"] if rule["source"] != "heuristic" else "rule", rule
-    name = heuristic_category(description, amount_cents, key)
+    if own_issuers is None:
+        own_issuers = own_debt_issuers(conn)
+    name = heuristic_category(description, amount_cents, key, account_kind, own_issuers)
     if name:
         return category_id(conn, name), "heuristic", None
     return None, None, None
@@ -205,19 +280,25 @@ def categorize(conn: sqlite3.Connection, *, only_uncategorized: bool = True,
                include_user: bool = False, ids: list[str] | None = None) -> int:
     """Run rules and heuristics. Returns how many rows changed."""
     rules = load_rules(conn)
-    where = ["removed_at IS NULL"]
+    issuers = own_debt_issuers(conn)
+    where = ["t.removed_at IS NULL"]
     params: list = []
     if ids:
-        where.append("id IN (%s)" % ",".join("?" * len(ids)))
+        where.append("t.id IN (%s)" % ",".join("?" * len(ids)))
         params.extend(ids)
     elif only_uncategorized:
-        where.append("category_id IS NULL")
+        where.append("t.category_id IS NULL")
     if not include_user:
-        where.append("(category_source IS NULL OR category_source NOT IN ('user','claude'))")
+        where.append("(t.category_source IS NULL OR t.category_source NOT IN ('user','claude'))")
     changed = 0
-    for row in db.rows(conn, "SELECT id, description, payee_key, amount_cents, category_id FROM transactions WHERE " + " AND ".join(where), params):
+    # The account's kind decides whether its rows can be spending at all, so
+    # it is joined in rather than looked up per row.
+    sql = ("SELECT t.id, t.description, t.payee_key, t.amount_cents, t.category_id, a.kind AS account_kind "
+           "FROM transactions t LEFT JOIN accounts a ON a.id = t.account_id WHERE ")
+    for row in db.rows(conn, sql + " AND ".join(where), params):
         key = row["payee_key"] or payee_key(row["description"])
-        cid, source, rule = decide(conn, rules, row["description"], key, row["amount_cents"])
+        cid, source, rule = decide(conn, rules, row["description"], key, row["amount_cents"],
+                                   row["account_kind"], issuers)
         if cid is None or cid == row["category_id"]:
             continue
         conn.execute("UPDATE transactions SET category_id = ?, category_source = ? WHERE id = ?",

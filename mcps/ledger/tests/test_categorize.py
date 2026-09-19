@@ -74,3 +74,90 @@ def test_transfer_pairing_across_accounts(conn):
     ])
     sync.run(conn, "u", now=NOW, fetch=bridge, max_requests=1)
     assert cat(conn, "out")["n"] == "Transfer" and cat(conn, "in")["n"] == "Transfer"
+
+
+def test_payments_to_an_unconnected_card_stay_visible_as_spending(conn):
+    # The purchases behind them are invisible, so calling them transfers would
+    # delete the money from the record entirely.
+    _seed(conn, [
+        tx("a", "2026-09-01", "-3901.02", "ACH: APPLECARD GSBANK"),
+        tx("b", "2026-09-01", "-4693.47", "ACH: BARCLAYCARD US"),
+        tx("c", "2026-09-01", "-5244.00", "ACH: BILT CARD"),
+    ])
+    for tid in ("a", "b", "c"):
+        assert cat(conn, tid)["n"] == "Card Payments"
+    assert db.one(conn, "SELECT kind FROM categories WHERE name = 'Card Payments'")["kind"] == "expense"
+
+
+def test_a_card_payment_becomes_a_transfer_once_the_card_is_connected(conn):
+    bridge = FakeBridge([
+        account("chk", "Checking", "100.00", transactions=[
+            tx("out", "2026-09-01", "-500.00", "ACH: BARCLAYCARD US")]),
+        account("card", "Barclaycard", "-10.00", transactions=[
+            tx("in", "2026-09-01", "500.00", "PAYMENT RECEIVED")]),
+    ])
+    sync.run(conn, "u", now=NOW, fetch=bridge, max_requests=1)
+    assert cat(conn, "out")["n"] == "Transfer", "both halves are present, so it is money moving"
+    assert cat(conn, "in")["n"] == "Transfer"
+
+
+def test_nothing_inside_an_investment_or_loan_account_is_spending(conn):
+    bridge = FakeBridge([
+        account("plan", "MY SAVINGS PLAN", "191068.81", transactions=[
+            tx("contrib", "2026-09-01", "936.97", "contribution"),
+            tx("div", "2026-09-02", "12.00", "DIVIDEND")]),
+        account("inv", "RESTRICTED STOCK UNITS", "3868.80", transactions=[
+            tx("buy", "2026-09-01", "-25.00", "Invesco S&P 500 Equal Weight ETF")]),
+        account("loan", "SoFi Personal Loan", "-46000.00", transactions=[
+            tx("disb", "2026-09-01", "-46000.00", "Disbursement"),
+            tx("fee", "2026-09-03", "-40.00", "INTEREST CHARGE")]),
+    ])
+    sync.run(conn, "u", now=NOW, fetch=bridge, max_requests=1)
+    for tid in ("contrib", "div", "buy", "disb"):
+        assert cat(conn, tid)["n"] == "Transfer", tid
+    assert cat(conn, "fee")["n"] == "Fees & Interest", "a real charge inside the account still counts"
+
+
+def test_borrowed_money_arriving_is_not_income(conn):
+    _seed(conn, [tx("a", "2026-09-01", "25528.59", "ACH: SOFI PL DISB")])
+    assert cat(conn, "a")["n"] == "Transfer"
+
+
+def test_merchant_keywords_reach_the_names_that_were_missing(conn):
+    _seed(conn, [
+        tx("a", "2026-09-01", "-372.66", "BRGHTWHL L* LITTLE EXP"),
+        tx("b", "2026-09-01", "-31.85", "Vinted"),
+        tx("c", "2026-09-01", "-166.88", "TRAVELERS PER INS"),
+        tx("d", "2026-09-01", "-757.66", "ACH: TOYOTA ACH LEASE"),
+        tx("e", "2026-09-01", "-504.65", "ACH: Duquesne Light"),
+        tx("f", "2026-09-01", "-46.42", "SAMS CLUB.COM"),
+        tx("g", "2026-09-01", "-1715.24", "ACH: GUARANTEED RATE"),
+    ])
+    assert [cat(conn, t)["n"] for t in "abcdefg"] == [
+        "Kids", "Shopping", "Insurance", "Transportation", "Utilities", "Groceries", "Housing"]
+
+
+def test_paying_a_card_the_ledger_already_holds_is_a_transfer(conn):
+    # Partial payments and statement timing stop the two halves from matching,
+    # so pair_transfers never sees them; without this the payment would be
+    # counted as spending on top of the card's own purchases.
+    bridge = FakeBridge([
+        account("chk", "Checking", "100.00", transactions=[
+            tx("pay", "2026-09-01", "-200.00", "ACH: CHASE CREDIT CRD")]),
+        account("card", "Chase Freedom Unlimited", "-3009.94", conn_id="chase",
+                transactions=[tx("buy", "2026-09-02", "-40.00", "SOME SHOP")]),
+    ])
+    bridge.accounts[1]["org"] = {"id": "chase", "name": "Chase Bank"}
+    sync.run(conn, "u", now=NOW, fetch=bridge, max_requests=1)
+    assert categorize.own_debt_issuers(conn) >= {"CHASE"}
+    assert cat(conn, "pay")["n"] == "Transfer"
+
+
+def test_issuers_are_only_taken_from_cards_and_loans_on_file(conn):
+    bridge = FakeBridge([account("chk", "Checking", "100.00")])
+    sync.run(conn, "u", now=NOW, fetch=bridge, max_requests=1)
+    assert categorize.own_debt_issuers(conn) == set(), "a checking account is not an issuer"
+    conn.execute("UPDATE accounts SET kind = 'credit' WHERE id = 'chk'")
+    conn.commit()
+    # "Demo Bank" contributes DEMO; BANK is too generic to identify anyone.
+    assert categorize.own_debt_issuers(conn) == {"DEMO"}
