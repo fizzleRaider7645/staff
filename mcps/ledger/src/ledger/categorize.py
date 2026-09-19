@@ -52,7 +52,7 @@ KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
                 "BREWING", "BREWERY", "PANERA", "SUBWAY", "WENDY", "CHICK-FIL", "DUNKIN",
                 "PEET", "BLUE BOTTLE", "PHILZ", "SWEETGREEN", "CAVA", "EATS", "RAMEN",
                 "NOODLE", "THAI", "PHO ", "BBQ", "STEAK", "ROADHOUSE", "DENNY",
-                "CHILI'S", "ICE CREAM", "CREAMERY", "LIQUOR", "WINE & SPIRITS",
+                "CHILI'S", "ICE CREAM", "CREAMERY", "JENI'S", "LIQUOR", "WINE & SPIRITS",
                 "BEER DIST", "TAVERN", "SALOON")),
     ("Transportation", ("UBER", "LYFT", "PARKING", "TOLL", "TRANSIT", "MTA", "BART", "METRO",
                         "CALTRAIN", "AMTRAK", "PARKMOBILE", "CLIPPER", "DMV", "CAR WASH",
