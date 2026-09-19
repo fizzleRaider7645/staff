@@ -119,3 +119,42 @@ def test_a_budget_needs_a_category_that_exists(ledger):
 
 def _cid(conn):
     return db.one(conn, "SELECT id FROM categories WHERE name = 'Groceries'")["id"]
+
+
+def _kinds(conn, now=SEP):
+    from ledger import insights
+    return {i.kind: i for i in insights.run_all(conn, now)}
+
+
+def test_going_over_is_reported_with_what_it_would_take_to_fix(ledger):
+    budgets.set_budget(ledger, "Groceries", 50000, start_month="2026-09", now=NOW)
+    spend(ledger, "a", "2026-09", 80000)
+    i = _kinds(ledger)["budget_over"]
+    assert i.severity == "alert" and i.amount_cents == 30000
+    assert "over its" in i.title and i.suggested_action
+
+
+def test_the_wins_are_reported_too(ledger):
+    # Doug asked to hear what is going right, not only what is wrong.
+    budgets.set_budget(ledger, "Groceries", 50000, start_month="2026-07", now=NOW)
+    kinds = _kinds(ledger)
+    assert "budget_carry_built" in kinds, "two quiet months is money he could move"
+    assert kinds["budget_carry_built"].amount_cents == 100000
+    assert "budget_healthy" in kinds
+
+
+def test_spending_outside_every_budget_is_called_out(ledger):
+    budgets.set_budget(ledger, "Groceries", 50000, start_month="2026-09", now=NOW)
+    spend(ledger, "a", "2026-09", 10000)
+    spend(ledger, "b", "2026-09", 90000, category="Shopping")
+    i = _kinds(ledger)["budget_unbudgeted"]
+    assert i.amount_cents == 90000 and "Shopping" in i.detail
+
+
+def test_a_fast_month_the_carry_covers_says_both_things(ledger):
+    budgets.set_budget(ledger, "Groceries", 50000, start_month="2026-08", now=NOW)
+    spend(ledger, "aug", "2026-08", 25000)
+    spend(ledger, "sep", "2026-09", 40000)
+    i = _kinds(ledger)["budget_pace"]
+    assert "carried in covers it this month" in i.detail
+    assert "budget_over" not in _kinds(ledger)

@@ -12,8 +12,8 @@ import json
 
 from mcp.server import MCPServer
 
-from ledger import (__version__, categorize, credentials, db, goals, insights, recurring,
-                    reports, review, simplefin, sync)
+from ledger import (__version__, budgets, categorize, credentials, db, goals, insights,
+                    recurring, reports, review, simplefin, sync)
 from ledger.money import add_days, epoch_to_date, month_bounds, month_of, parse_cents, shift_month
 
 INSTRUCTIONS = (
@@ -227,6 +227,66 @@ def add_rule(pattern: str, category: str, match_type: str = "payee") -> dict:
     rid = categorize.add_rule(conn, pattern, category, match_type=match_type, source="claude")
     applied = categorize.categorize(conn, only_uncategorized=False)
     return {"rule_id": rid, "recategorized": applied}
+
+
+@server.tool()
+def list_budgets(month: str | None = None) -> dict:
+    """Every budget for a month against what has actually been spent, plus the spending no budget
+    covers.
+
+    Each budget reports two different things and both matter: over_budget says the month has blown
+    its limit, while over_rate says the run rate is too high even though carried-over room is
+    absorbing it this time. A category can be fine this month and unsustainable. carry_in is what
+    rolled over from previous months — positive when under, negative when a previous month
+    overspent. unbudgeted is spending in categories with no budget at all, which is what stops a
+    budget quietly describing only part of the money."""
+    conn = _conn()
+    return _dollars(budgets.summary(conn, month))
+
+
+@server.tool()
+def set_budget(category: str, amount: float, rollover: bool = True,
+               start_month: str | None = None, notes: str | None = None) -> dict:
+    """Set a category's monthly budget, in dollars, from start_month (YYYY-MM) onward.
+
+    With rollover, unspent money carries into the next month and an overspend carries as a debt.
+    Changing an amount keeps the old one on the months it applied to. The category must already
+    exist — check list_budgets or spending_summary for the names."""
+    conn = _conn()
+    bid = budgets.set_budget(conn, category, abs(parse_cents(str(amount))),
+                             start_month=start_month, rollover=rollover, basis="claude", notes=notes)
+    return _dollars({"budget_id": bid, "category": category,
+                     "budgets": budgets.status(conn, start_month)})
+
+
+@server.tool()
+def remove_budget(category: str) -> dict:
+    """Drop a category's budget entirely, including its history and any carry adjustments."""
+    return {"removed": budgets.remove_budget(_conn(), category), "category": category}
+
+
+@server.tool()
+def suggest_budgets(months: int = 3) -> dict:
+    """Propose a budget per category, each with the basis it rests on and how much to trust it.
+
+    Never quote a suggested figure without its basis. "median" means complete months of history;
+    "recurring" means it was derived from detected recurring charges, which carry a monthly rate
+    even from one month; "one_month" and "incomplete" mean there is not enough history and the
+    number is a guess — incomplete in particular means an account that carries this category's
+    spending was not reporting for some of those months, so the figure is probably low."""
+    return _dollars({"proposals": budgets.suggest(_conn(), months=months)})
+
+
+@server.tool()
+def reset_carry(category: str, month: str | None = None, note: str | None = None) -> dict:
+    """Clear a category's rolled-over balance for a month.
+
+    Use after a one-off the user does not want to repay out of future months, or to wipe a carry
+    built up under categories that have since been corrected."""
+    conn = _conn()
+    month = month or month_of(epoch_to_date(db.now_epoch()))
+    budgets.adjust(conn, category, month, "reset", note=note)
+    return _dollars({"category": category, "month": month, "budgets": budgets.status(conn, month)})
 
 
 @server.tool()

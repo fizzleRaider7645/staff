@@ -51,9 +51,9 @@ def context(conn: sqlite3.Connection, now: int | None = None, redetect: bool = T
 
 
 def modules():
-    from ledger.insights import (duplicates, fees, goals, mom, obligations, overlap, price,
-                                 subscriptions, unusual)
-    return [subscriptions, price, overlap, fees, unusual, obligations, goals, mom, duplicates]
+    from ledger.insights import (budgets, duplicates, fees, goals, mom, obligations, overlap,
+                                 price, subscriptions, unusual)
+    return [subscriptions, price, overlap, fees, unusual, obligations, goals, budgets, mom, duplicates]
 
 
 def run_all(conn: sqlite3.Connection, now: int | None = None, *, kinds=None, min_severity: str = "info",
