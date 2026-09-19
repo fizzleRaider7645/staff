@@ -185,3 +185,39 @@ def test_user_account_kind_survives(conn):
     conn.commit()
     sync.run(conn, "u", now=NOW + DAY, fetch=bridge, max_requests=1)
     assert db.one(conn, "SELECT kind FROM accounts WHERE id = 'chk'")["kind"] == "savings"
+
+
+def test_account_kind_reads_plan_and_card_names():
+    # A 401(k) called "MY SAVINGS PLAN" is not a savings account, and issuers
+    # put the product name in the account name rather than the word "card".
+    assert sync.account_kind("SYNCHRONY FINANCIAL MY SAVINGS PLAN (4503)") == "investment"
+    assert sync.account_kind("RESTRICTED STOCK UNITS (6457)") == "investment"
+    assert sync.account_kind("Chase Freedom Unlimited (3139)") == "credit"
+    assert sync.account_kind("Chase Sapphire Preferred (5453)") == "credit"
+    assert sync.account_kind("Venture (4216)") == "credit"
+    # The plain cases still land where they did.
+    assert sync.account_kind("360 Performance Savings (2198)") == "savings"
+    assert sync.account_kind("360 Checking (8445)") == "checking"
+    assert sync.account_kind("SoFi Personal Loan (9546)") == "loan"
+    # Short tokens have to stand alone: MIRAMAR is not an IRA.
+    assert sync.account_kind("MIRAMAR COMMUNITY ACCOUNT") == "unknown"
+
+
+def test_account_kind_falls_back_to_balance_and_institution():
+    assert sync.account_kind("Some Account", -23263) == "credit", "owing money with no loan hint"
+    assert sync.account_kind("SoFi Personal Loan", -4600000) == "loan", "the name still wins"
+    assert sync.account_kind("Individual (3644)", 315, "Fidelity Investments") == "investment"
+    assert sync.account_kind("Individual (3644)", 315, "Demo Bank") == "unknown"
+
+
+def test_reclassify_updates_heuristic_kinds_but_not_user_ones(conn):
+    bridge = FakeBridge([account("card", "Venture", "-232.63"),
+                         account("plan", "MY SAVINGS PLAN", "191068.81"),
+                         account("mine", "Automated", "203.65")])
+    sync.run(conn, "u", now=NOW, fetch=bridge, max_requests=1)
+    conn.execute("UPDATE accounts SET kind = 'unknown', kind_source = 'heuristic'")
+    conn.execute("UPDATE accounts SET kind = 'investment', kind_source = 'user' WHERE id = 'mine'")
+    conn.commit()
+    changed = {c["id"]: c["kind"] for c in sync.reclassify_accounts(conn)}
+    assert changed == {"card": "credit", "plan": "investment"}
+    assert db.one(conn, "SELECT kind FROM accounts WHERE id = 'mine'")["kind"] == "investment"

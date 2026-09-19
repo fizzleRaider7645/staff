@@ -147,6 +147,13 @@ def cmd_accounts(args) -> int:
             raise CliError(f"no account with id {args.id}")
         emit(args, {"id": args.id, "kind": args.kind}, lambda: print(f"{args.id}: {args.kind}"))
         return EXIT_OK
+    if args.accounts_cmd == "reclassify":
+        changed = sync.reclassify_accounts(conn)
+        emit(args, {"changed": changed},
+             lambda: (table([[c["id"], c["name"], c["was"], c["kind"]] for c in changed],
+                            ["ID", "ACCOUNT", "WAS", "NOW"]) if changed else None,
+                      print(f"\n{len(changed)} account(s) reclassified")))
+        return EXIT_OK
     if args.accounts_cmd == "hide":
         conn.execute("UPDATE accounts SET hidden = ? WHERE id = ?", (0 if args.show else 1, args.id))
         conn.commit()
@@ -293,6 +300,7 @@ def build_parser() -> argparse.ArgumentParser:
     ss = s.add_subparsers(dest="accounts_cmd")
     k = ss.add_parser("set-kind", help="override an account's kind")
     k.add_argument("id"); k.add_argument("kind", choices=["checking", "savings", "credit", "loan", "investment", "other"])
+    ss.add_parser("reclassify", help="re-run the kind heuristic over every account you have not set by hand")
     h = ss.add_parser("hide", help="hide an account from reports")
     h.add_argument("id"); h.add_argument("--show", action="store_true", help="unhide instead")
     s.set_defaults(fn=cmd_accounts)

@@ -9,6 +9,13 @@ from ledger import db
 from ledger.money import epoch_to_date, month_bounds, month_of, shift_month
 
 LIVE = "t.removed_at IS NULL AND t.ignored = 0"
+# A hidden account is left out of every total. Some institutions report the
+# same money twice — SoFi lists each savings "vault" as its own account as
+# well as inside the parent balance — so the duplicate has to disappear from
+# spending and net worth alike, not just from the account list. Its rows are
+# still searchable by naming the account.
+NOT_HIDDEN = "t.account_id NOT IN (SELECT id FROM accounts WHERE hidden = 1)"
+VISIBLE = f"{LIVE} AND {NOT_HIDDEN}"
 
 
 def accounts(conn: sqlite3.Connection, include_hidden: bool = False) -> list[dict]:
@@ -21,6 +28,21 @@ def accounts(conn: sqlite3.Connection, include_hidden: bool = False) -> list[dic
         {where} ORDER BY a.kind, a.name""")
 
 
+def spendable_cents(account: dict) -> int:
+    """What you could spend out of one account today.
+
+    SimpleFIN's available-balance is optional and several institutions send a
+    literal 0 rather than omitting it. A zero available against a positive
+    balance is that placeholder, not an empty account, so fall back to the
+    balance; a genuinely empty account has a zero balance and comes out at
+    zero either way.
+    """
+    available = account["available_cents"]
+    if available is None or (available == 0 and account["balance_cents"] > 0):
+        return account["balance_cents"]
+    return available
+
+
 def net_worth(conn: sqlite3.Connection) -> dict:
     accts = accounts(conn)
     assets = sum(a["balance_cents"] for a in accts if a["kind"] not in ("credit", "loan") and a["balance_cents"] > 0)
@@ -29,8 +51,7 @@ def net_worth(conn: sqlite3.Connection) -> dict:
         "total_cents": sum(a["balance_cents"] for a in accts),
         "assets_cents": assets,
         "liabilities_cents": liabilities,
-        "cash_cents": sum((a["available_cents"] if a["available_cents"] is not None else a["balance_cents"])
-                          for a in accts if a["kind"] in ("checking", "savings")),
+        "cash_cents": sum(spendable_cents(a) for a in accts if a["kind"] in ("checking", "savings")),
         "accounts": accts,
     }
 
@@ -40,6 +61,8 @@ def transactions(conn: sqlite3.Connection, *, start: str | None = None, end: str
                  text: str | None = None, min_cents: int | None = None, max_cents: int | None = None,
                  uncategorized: bool = False, include_removed: bool = False, limit: int = 200) -> list[dict]:
     where = [] if include_removed else [LIVE]
+    if not include_removed and not account:
+        where.append(NOT_HIDDEN)
     params: list = []
     if start:
         where.append("t.posted_date >= ?"); params.append(start)
@@ -82,7 +105,7 @@ def spending_summary(conn: sqlite3.Connection, start: str, end: str, group_by: s
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN accounts a ON a.id = t.account_id
-        WHERE {LIVE} AND t.amount_cents < 0 AND t.posted_date >= ? AND t.posted_date < ?
+        WHERE {VISIBLE} AND t.amount_cents < 0 AND t.posted_date >= ? AND t.posted_date < ?
           AND COALESCE(c.kind, 'expense') NOT IN ('transfer', 'income')
         GROUP BY key ORDER BY spent_cents DESC""", (start, end))
 
@@ -97,7 +120,7 @@ def totals(conn: sqlite3.Connection, start: str, end: str) -> dict:
           SUM(CASE WHEN t.category_id IS NULL THEN 1 ELSE 0 END) AS uncategorized,
           COUNT(*) AS count
         FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
-        WHERE {LIVE} AND t.posted_date >= ? AND t.posted_date < ?""", (start, end))
+        WHERE {VISIBLE} AND t.posted_date >= ? AND t.posted_date < ?""", (start, end))
     return {
         "income_cents": int(row["income"]), "expense_cents": int(row["expense"]),
         "net_cents": int(row["income"]) - int(row["expense"]),
@@ -140,7 +163,7 @@ def uncategorized_payees(conn: sqlite3.Connection, limit: int = 20) -> list[dict
     return db.rows(conn, f"""
         SELECT t.payee_key AS payee, COUNT(*) AS count, -SUM(t.amount_cents) AS net_cents,
                MAX(t.description) AS example
-        FROM transactions t WHERE {LIVE} AND t.category_id IS NULL
+        FROM transactions t WHERE {VISIBLE} AND t.category_id IS NULL
         GROUP BY t.payee_key ORDER BY count DESC LIMIT ?""", (limit,))
 
 

@@ -15,7 +15,9 @@ alone.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
+import time
 from dataclasses import dataclass, field
 
 from ledger import categorize, db, simplefin
@@ -76,19 +78,73 @@ def budget_available(conn: sqlite3.Connection, now: int, ceiling: int = DAILY_CE
     return max(0, ceiling - requests_last_24h(conn, now))
 
 
-def account_kind(name: str) -> str:
+# Retirement and equity plans first: "MY SAVINGS PLAN" is a 401(k), not a
+# savings account, and "RESTRICTED STOCK UNITS" is a brokerage account.
+INVESTMENT_WORDS = ("401", "403B", "403(B)", "457", "IRA", "ROTH", "BROKERAGE", "INVEST",
+                    "HSA", "529", "SAVINGS PLAN", "RETIREMENT", "PENSION", "RSU",
+                    "RESTRICTED STOCK", "STOCK PLAN", "ESPP", "THRIFT SAVINGS", "ANNUITY")
+# Card product names. Issuers rarely put "credit" or "card" in the account
+# name: Capital One reports "Venture", Chase reports "Chase Freedom Unlimited".
+CREDIT_WORDS = ("CREDIT", "CARD", "VISA", "MASTERCARD", "AMEX", "AMERICAN EXPRESS", "DISCOVER",
+                "VENTURE", "VENTURE X", "QUICKSILVER", "SAVOR", "SPARK", "FREEDOM", "SAPPHIRE",
+                "SLATE", "CUSTOM CASH", "DOUBLE CASH", "BLUE CASH", "ACTIVE CASH", "AUTOGRAPH",
+                "PLATINUM", "GOLD DELTA", "SKYMILES", "REWARDS")
+LOAN_WORDS = ("MORTGAGE", "LOAN", "AUTO FIN", "HELOC")
+SAVINGS_WORDS = ("SAVING", "MONEY MARKET", "VAULT", "CERTIFICATE OF DEPOSIT")
+CHECKING_WORDS = ("CHECKING", "CHEQUING", "SPENDING", "EVERYDAY", "CASH MANAGEMENT")
+# When the name says nothing, the institution still might: an unclassified
+# account at a brokerage is a brokerage account.
+INVESTMENT_ORGS = ("FIDELITY", "VANGUARD", "SCHWAB", "ROBINHOOD", "E*TRADE", "ETRADE",
+                   "MERRILL", "AMERITRADE", "INTERACTIVE BROKERS", "BETTERMENT",
+                   "WEALTHFRONT", "INVEST", "SECURITIES", "STASH", "M1 FINANCE")
+
+
+def _mentions(text: str, words) -> bool:
+    """Substring match, except that a word ending in a digit or a short
+    all-caps token has to stand alone: "IRA" must not match "MIRAMAR"."""
+    for w in words:
+        if len(w) <= 4:
+            if re.search(r"(?<![A-Z0-9])" + re.escape(w) + r"(?![A-Z0-9])", text):
+                return True
+        elif w in text:
+            return True
+    return False
+
+
+def account_kind(name: str, balance_cents: int | None = None, org: str | None = None) -> str:
     n = (name or "").upper()
-    if any(k in n for k in ("CREDIT", "CARD", "VISA", "MASTERCARD", "AMEX", "DISCOVER")):
-        return "credit"
-    if any(k in n for k in ("MORTGAGE", "LOAN", "AUTO FIN")):
-        return "loan"
-    if any(k in n for k in ("401", "IRA", "ROTH", "BROKERAGE", "INVEST", "HSA", "529")):
+    if _mentions(n, INVESTMENT_WORDS):
         return "investment"
-    if "SAVING" in n or "MONEY MARKET" in n:
+    if _mentions(n, CREDIT_WORDS):
+        return "credit"
+    if _mentions(n, LOAN_WORDS):
+        return "loan"
+    if _mentions(n, SAVINGS_WORDS):
         return "savings"
-    if any(k in n for k in ("CHECKING", "CHEQUING", "SPENDING", "EVERYDAY", "CASH MANAGEMENT")):
+    if _mentions(n, CHECKING_WORDS):
         return "checking"
+    if balance_cents is not None and balance_cents < 0:
+        # Owing money with nothing in the name that says loan: a card.
+        return "credit"
+    if org and _mentions(org.upper(), INVESTMENT_ORGS):
+        return "investment"
     return "unknown"
+
+
+def reclassify_accounts(conn: sqlite3.Connection) -> list[dict]:
+    """Re-run the kind heuristic over stored accounts. Kinds you set by hand
+    are left alone. Returns the accounts whose kind changed."""
+    changed = []
+    for a in db.rows(conn, """
+            SELECT a.id, a.name, a.kind, a.balance_cents, c.name AS institution
+            FROM accounts a LEFT JOIN connections c ON c.conn_id = a.conn_id
+            WHERE a.kind_source != 'user'"""):
+        guess = account_kind(a["name"], a["balance_cents"], a["institution"])
+        if guess != a["kind"]:
+            conn.execute("UPDATE accounts SET kind = ? WHERE id = ?", (guess, a["id"]))
+            changed.append({"id": a["id"], "name": a["name"], "was": a["kind"], "kind": guess})
+    conn.commit()
+    return changed
 
 
 def _log(conn: sqlite3.Connection, started: int, finished: int, result: SyncResult | None,
@@ -121,6 +177,10 @@ def ingest(conn: sqlite3.Connection, data: dict, now: int, kind: str = "incremen
             (c.get("conn_id"), c.get("name", ""), c.get("org_id"), c.get("org_url"), c.get("sfin_url"), now, now),
         )
 
+    org_names: dict[str | None, str] = {
+        c.get("conn_id"): c.get("name", "") for c in data.get("connections") or []
+    }
+
     new_ids: list[str] = []
     for acct in data.get("accounts") or []:
         aid = acct["id"]
@@ -133,12 +193,13 @@ def ingest(conn: sqlite3.Connection, data: dict, now: int, kind: str = "incremen
                    VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(conn_id) DO UPDATE SET last_seen = excluded.last_seen""",
                 (conn_id, org.get("name", ""), org.get("id"), org.get("url"), org.get("sfin-url"), now, now),
             )
+            org_names.setdefault(conn_id, org.get("name", "") or org.get("domain", ""))
         balance = parse_cents(acct.get("balance", "0"))
         available = acct.get("available-balance")
         available = parse_cents(available) if available not in (None, "") else None
         balance_date = int(acct.get("balance-date") or now)
         existing = conn.execute("SELECT kind, kind_source FROM accounts WHERE id = ?", (aid,)).fetchone()
-        kind_guess = account_kind(acct.get("name", ""))
+        kind_guess = account_kind(acct.get("name", ""), balance, org_names.get(conn_id))
         if existing is None:
             conn.execute(
                 """INSERT INTO accounts (id, conn_id, name, currency, balance_cents, available_cents,
@@ -264,14 +325,22 @@ def reconcile_pending(conn: sqlite3.Connection, account_id: str, start: int, end
 # --- orchestration -----------------------------------------------------
 
 def _fetch_window(conn, access_url, fetch, kind, start, end, now) -> SyncResult:
-    started = db.now_epoch()
+    # Stamp the log with the sync's own clock. The request budget is counted
+    # off these timestamps, so a caller that supplies `now` has to see its own
+    # 24h window; reading the wall clock here made the budget disagree with
+    # every other date in the run. Duration still comes from a real timer.
+    t0 = time.monotonic()
+
+    def finished() -> int:
+        return now + int(time.monotonic() - t0)
+
     try:
         data = fetch(access_url, start, end, pending=True)
     except simplefin.SimpleFinError as e:
-        _log(conn, started, db.now_epoch(), None, kind, start, end, False, str(e))
+        _log(conn, now, finished(), None, kind, start, end, False, str(e))
         raise
     result = ingest(conn, data, now, kind, start, end)
-    _log(conn, started, db.now_epoch(), result, kind, start, end, True, None)
+    _log(conn, now, finished(), result, kind, start, end, True, None)
     return result
 
 
