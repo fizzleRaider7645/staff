@@ -12,7 +12,8 @@ import json
 
 from mcp.server import MCPServer
 
-from ledger import __version__, categorize, credentials, db, goals, insights, recurring, reports, simplefin, sync
+from ledger import (__version__, categorize, credentials, db, goals, insights, recurring,
+                    reports, review, simplefin, sync)
 from ledger.money import add_days, epoch_to_date, month_bounds, month_of, parse_cents, shift_month
 
 INSTRUCTIONS = (
@@ -226,6 +227,55 @@ def add_rule(pattern: str, category: str, match_type: str = "payee") -> dict:
     rid = categorize.add_rule(conn, pattern, category, match_type=match_type, source="claude")
     applied = categorize.categorize(conn, only_uncategorized=False)
     return {"rule_id": rid, "recategorized": applied}
+
+
+@server.tool()
+def review_categories(period: str | None = None) -> dict:
+    """What the categories are built on, and what looks wrong about them.
+
+    reason_groups says how each set of rows got its category ("96 rows are Gas because the keyword
+    BP# matched"), which is how a wrong category is spotted at all — a confident wrong answer looks
+    identical to a right one in every total. anomalies flags shapes that are wrong however they
+    arose: money moving between the user's own accounts filed as spending, one payee split across
+    categories, a category that is really one merchant. Run this before trusting a budget."""
+    conn = _conn()
+    month = None
+    if period:
+        month = period if len(period) == 7 else month_of(epoch_to_date(db.now_epoch()))
+    return _dollars(review.report(conn, month=month))
+
+
+@server.tool()
+def list_rules() -> dict:
+    """Every categorization rule, with how many transactions it has claimed.
+
+    Check this before adding one: a new rule that duplicates or fights an existing rule is
+    invisible otherwise, and the first match in source order wins."""
+    return {"rules": categorize.list_rules(_conn())}
+
+
+@server.tool()
+def remove_rule(rule_id: int) -> dict:
+    """Delete a categorization rule and re-derive the rows it was deciding.
+
+    Their categories fall back to whatever the other rules and the heuristics say, so this is how a
+    rule that turned out to be wrong gets undone."""
+    conn = _conn()
+    removed = categorize.remove_rule(conn, rule_id)
+    return {"removed": removed, "recategorized": categorize.categorize(conn, only_uncategorized=False)}
+
+
+@server.tool()
+def recategorize(dry_run: bool = True) -> dict:
+    """Re-derive every category that a rule or heuristic chose, leaving hand-set ones alone.
+
+    With dry_run (the default) it returns the changes it would make and why, so they can be read
+    before anything moves. Use it after adding or removing rules."""
+    conn = _conn()
+    if dry_run:
+        changes = categorize.preview(conn)
+        return _dollars({"dry_run": True, "changes": changes, "count": len(changes)})
+    return {"dry_run": False, "recategorized": categorize.categorize(conn, only_uncategorized=False)}
 
 
 @server.tool()

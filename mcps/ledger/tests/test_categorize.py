@@ -194,3 +194,51 @@ def test_issuers_are_only_taken_from_cards_and_loans_on_file(conn):
     conn.commit()
     # "Demo Bank" contributes DEMO; BANK is too generic to identify anyone.
     assert categorize.own_debt_issuers(conn) == {"DEMO"}
+
+
+def test_review_finds_a_wrong_category_not_just_a_missing_one(conn):
+    from ledger import review
+    bridge = FakeBridge([
+        account("chk", "Checking - 9538", "100.00", transactions=[
+            tx("w", "2026-09-01", "-500.00", "Withdrawal: To Savings - 8966")]),
+        account("sav", "Savings - 8966", "500.00"),
+    ])
+    sync.run(conn, "u", now=NOW, fetch=bridge, max_requests=1)
+    # Put it back the way the old keyword table had it.
+    conn.execute("UPDATE transactions SET category_id = (SELECT id FROM categories WHERE name='Cash & ATM'), "
+                 "category_source='heuristic' WHERE id = 'w'")
+    conn.commit()
+    checks = {a["check"] for a in review.anomalies(conn)}
+    assert "transfer-shaped" in checks, "money between the user's own accounts was called spending"
+    found = next(a for a in review.anomalies(conn) if a["check"] == "transfer-shaped")
+    assert found["evidence"] == ["w"] and found["amount_cents"] == 50000
+
+
+def test_reason_groups_say_what_each_category_rests_on(conn):
+    from ledger import review
+    _seed(conn, [
+        tx("a", "2026-09-01", "-15.99", "NETFLIX.COM"),
+        tx("b", "2026-09-02", "-80.00", "TRADER JOE'S #123"),
+        tx("c", "2026-09-03", "-40.00", "TRADER JOE'S #456"),
+    ])
+    groups = {(g["category"], g["reason"]): g["count"] for g in review.reason_groups(conn)}
+    assert groups[("Groceries", "keyword:TRADER JOE")] == 2
+    assert groups[("Subscriptions", "service:netflix")] == 1
+
+
+def test_a_repair_clears_a_category_nothing_stands_behind_any_more(conn):
+    _seed(conn, [tx("a", "2026-09-01", "-12.00", "SOME UNKNOWN PLACE")])
+    conn.execute("UPDATE transactions SET category_id = (SELECT id FROM categories WHERE name='Gas'), "
+                 "category_source='heuristic' WHERE id='a'")
+    conn.commit()
+    categorize.categorize(conn, only_uncategorized=False)
+    assert cat(conn, "a") == {"n": None, "s": None}, "a corrected keyword must not leave its answer behind"
+
+
+def test_an_ordinary_run_never_clears_anything(conn):
+    _seed(conn, [tx("a", "2026-09-01", "-12.00", "SOME UNKNOWN PLACE")])
+    conn.execute("UPDATE transactions SET category_id = (SELECT id FROM categories WHERE name='Gas'), "
+                 "category_source='heuristic' WHERE id='a'")
+    conn.commit()
+    categorize.categorize(conn)
+    assert cat(conn, "a")["n"] == "Gas"

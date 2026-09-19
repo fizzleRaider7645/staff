@@ -412,13 +412,27 @@ def categorize(conn: sqlite3.Connection, *, only_uncategorized: bool = True,
     changed = 0
     # The account's kind decides whether its rows can be spending at all, so
     # it is joined in rather than looked up per row.
-    sql = ("SELECT t.id, t.description, t.payee_key, t.amount_cents, t.category_id, a.kind AS account_kind "
+    sql = ("SELECT t.id, t.description, t.payee_key, t.amount_cents, t.category_id, t.category_reason, t.category_source, a.kind AS account_kind "
            "FROM transactions t LEFT JOIN accounts a ON a.id = t.account_id WHERE ")
     for row in db.rows(conn, sql + " AND ".join(where), params):
         key = row["payee_key"] or payee_key(row["description"])
         cid, source, rule, why = decide(conn, rules, row["description"], key, row["amount_cents"],
                                         row["account_kind"], issuers, own)
-        if cid is None or cid == row["category_id"]:
+        if cid is None:
+            # Nothing stands behind this category any more. On a re-derivation
+            # that means the keyword that produced it has been corrected, and
+            # leaving the old answer in place would keep a known-wrong category
+            # forever; uncategorized is worse to look at and better to trust.
+            if not only_uncategorized and row["category_id"] is not None \
+                    and row["category_source"] == "heuristic":
+                conn.execute(
+                    """UPDATE transactions SET category_id = NULL, category_source = NULL,
+                         category_reason = NULL, category_rule_id = NULL WHERE id = ?""",
+                    (row["id"],))
+                changed += 1
+            continue
+        same = cid == row["category_id"]
+        if same and why == row["category_reason"]:
             continue
         conn.execute(
             """UPDATE transactions SET category_id = ?, category_source = ?, category_reason = ?,
@@ -426,7 +440,10 @@ def categorize(conn: sqlite3.Connection, *, only_uncategorized: bool = True,
             (cid, source, why, rule["id"] if rule else None, row["id"]))
         if rule:
             conn.execute("UPDATE rules SET hits = hits + 1 WHERE id = ?", (rule["id"],))
-        changed += 1
+        # A row whose category was already right but whose reason was not
+        # recorded is not a change worth reporting; the reason is bookkeeping.
+        if not same:
+            changed += 1
     changed += pair_transfers(conn)
     conn.commit()
     return changed

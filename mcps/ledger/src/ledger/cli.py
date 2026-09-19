@@ -10,7 +10,7 @@ import getpass
 import json
 import sys
 
-from ledger import __version__, categorize, config, credentials, db, reports, simplefin, sync
+from ledger import __version__, categorize, config, credentials, db, reports, review, simplefin, sync
 from ledger.money import epoch_to_date, fmt, month_of, parse_cents
 
 EXIT_OK, EXIT_ERROR, EXIT_NOT_SET_UP, EXIT_BUDGET = 0, 1, 2, 3
@@ -248,6 +248,35 @@ def cmd_rules(args) -> int:
     return EXIT_OK
 
 
+def cmd_review(args) -> int:
+    """What the classifier decided and what looks wrong about it."""
+    conn = open_db()
+    rep = review.report(conn, month=args.month)
+
+    def human():
+        groups = rep["reason_groups"][:args.limit]
+        print("what the categories are built on")
+        table([[g["category"], g["reason"][:34], g["count"], fmt(g["spent_cents"]),
+                (g["samples"] or "").split(" | ")[0][:30]] for g in groups],
+              ["CATEGORY", "WHY", "N", "SPENT", "EXAMPLE"], right={2, 3})
+        if rep["anomalies"]:
+            print("\nworth a second look")
+            for a in rep["anomalies"]:
+                amount = f"  {fmt(a['amount_cents'])}" if a["amount_cents"] else ""
+                print(f"[{a['severity']}] {a['detail']}{amount}")
+                if a["evidence"]:
+                    print(f"    ledger categorize set {' '.join(a['evidence'][:3])} --category <name>")
+                elif a["payee"]:
+                    print(f"    ledger transactions --payee {a['payee']!r}")
+        if rep["uncategorized"]:
+            print("\nstill uncategorized")
+            table([[p["payee"], p["count"], fmt(p["net_cents"]), p["example"][:38]]
+                   for p in rep["uncategorized"]], ["PAYEE", "N", "NET", "EXAMPLE"], right={1, 2})
+        print("\nre-derive everything automation chose: ledger categorize --repair --dry-run")
+    emit(args, rep, human)
+    return EXIT_OK
+
+
 def cmd_report(args) -> int:
     conn = open_db()
     month = args.month or month_of(epoch_to_date(db.now_epoch()))
@@ -354,6 +383,11 @@ def build_parser() -> argparse.ArgumentParser:
     r = ss.add_parser("remove"); r.add_argument("id", type=int)
     ss.add_parser("list")
     s.set_defaults(fn=cmd_rules)
+
+    s = sub.add_parser("review", help="what the categories are built on, and what looks wrong")
+    s.add_argument("--month", metavar="YYYY-MM", help="restrict to one month")
+    s.add_argument("--limit", type=int, default=25, help="how many reason groups to show")
+    s.set_defaults(fn=cmd_review)
 
     s = sub.add_parser("report", help="monthly income, spending and categories")
     s.add_argument("--month", metavar="YYYY-MM")
