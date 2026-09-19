@@ -407,7 +407,8 @@ def register_extra(parser: argparse.ArgumentParser) -> None:
     for action in parser._actions:  # noqa: SLF001 - argparse has no public accessor
         if isinstance(action, argparse._SubParsersAction):  # noqa: SLF001
             sub = action
-    for modname in ("ledger.insights.cli", "ledger.mcp_cli", "ledger.dashboard_cli", "ledger.schedule"):
+    for modname in ("ledger.insights.cli", "ledger.budget_cli", "ledger.mcp_cli",
+                    "ledger.dashboard_cli", "ledger.schedule"):
         try:
             mod = __import__(modname, fromlist=["add_commands"])
         except ImportError:

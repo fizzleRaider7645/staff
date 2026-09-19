@@ -110,6 +110,15 @@ def spending_summary(conn: sqlite3.Connection, start: str, end: str, group_by: s
         GROUP BY key ORDER BY spent_cents DESC""", (start, end))
 
 
+def spent_by_category(conn: sqlite3.Connection, start: str, end: str) -> dict[str, int]:
+    """{category: cents spent}, the one definition every caller must share.
+
+    A budget that counts differently from the report it sits next to is worse
+    than no budget, so this is a function rather than a convention.
+    """
+    return {g["key"]: g["spent_cents"] for g in spending_summary(conn, start, end)}
+
+
 def totals(conn: sqlite3.Connection, start: str, end: str) -> dict:
     row = db.one(conn, f"""
         SELECT
@@ -165,6 +174,50 @@ def uncategorized_payees(conn: sqlite3.Connection, limit: int = 20) -> list[dict
                MAX(t.description) AS example
         FROM transactions t WHERE {VISIBLE} AND t.category_id IS NULL
         GROUP BY t.payee_key ORDER BY count DESC LIMIT ?""", (limit,))
+
+
+def coverage(conn: sqlite3.Connection) -> list[dict]:
+    """How far back each account's history actually reaches.
+
+    An account linked to the bridge later than the others has no history from
+    before it was linked, and no amount of syncing invents it. That is
+    invisible in a monthly total, which just looks like a quiet month.
+    """
+    return db.rows(conn, f"""
+        SELECT a.id, a.name, a.kind, MIN(t.posted_date) AS first_tx, MAX(t.posted_date) AS last_tx,
+               COUNT(t.id) AS transactions
+        FROM accounts a LEFT JOIN transactions t ON t.account_id = a.id AND {LIVE}
+        WHERE a.hidden = 0
+        GROUP BY a.id ORDER BY first_tx IS NULL, first_tx, a.name""")
+
+
+def complete_months(conn: sqlite3.Connection, today: str | None = None) -> list[dict]:
+    """Which months every account on file could actually have reported in.
+
+    A month where an account that carries spend today had not started
+    reporting is not a light month, it is a month with a hole in it, and
+    averaging a budget over it produces a number that was never true.
+    """
+    today = today or epoch_to_date(db.now_epoch())
+    accounts = [a for a in coverage(conn) if a["transactions"]]
+    if not accounts:
+        return []
+    first = min(a["first_tx"] for a in accounts)
+    out = []
+    month = month_of(first)
+    while month <= month_of(today):
+        start, _end = month_bounds(month)
+        missing = [a["name"] for a in accounts if a["first_tx"] > start]
+        partial = month == month_of(today) or month == month_of(first)
+        out.append({
+            "month": month,
+            "complete": not missing and not partial,
+            "partial": partial,
+            "accounts_with_data": len(accounts) - len(missing),
+            "accounts_missing": missing,
+        })
+        month = shift_month(month, 1)
+    return out
 
 
 def summary(conn: sqlite3.Connection, now: int) -> dict:
