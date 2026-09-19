@@ -59,9 +59,25 @@ complete.
    Apple Card, Lowe's. $24,839 of September's $36,096 is payments to them, with
    no category breakdown behind it, and it is the largest remaining hole. Once
    connected, the payments convert to transfers on their own.
-2. **Review the budgets.** Five were seeded from recurring charges; the rest I
-   set by hand from the visible months and they are guesses. `ledger budget`
-   shows where they stand; `ledger budget set <category> --amount N` changes one.
+2. **Finish the budgets.** I first set twelve myself to demo the feature,
+   without asking, then reported the resulting alerts back as findings about
+   Doug's spending — five of seven were my own bad numbers. He removed all
+   twelve. **Never write budgets, rules or categories to the live ledger to
+   demonstrate something.** Five are now set from figures Doug gave or charges
+   on his statement: Housing $4,497, Kids $1,585, Transportation $758,
+   Insurance $187, Subscriptions $121.
+
+   Two things remain open and need him, not a guess. **Utilities** is blocked
+   on water: electricity $250, gas $100, Comcast $101 and phone $35 give a $486
+   subtotal, but Pittsburgh Water has billed $291/$249/$206 across June and
+   August, and Doug describes $128 once for Platt plus $85 a month for sewage,
+   neither of which appears in the ledger. Utilities is $699 if the $85
+   replaces those charges and about $946 if it does not. And **five variable
+   categories** are proposed but unset: Gas $1,050, Dining $550, Health $500,
+   Groceries $300, Shopping $2,200, each an average of two months.
+
+   Card Payments should stay unbudgeted — capping $24,839 you cannot see inside
+   is not a budget.
 3. **Re-authenticate the bundled `claude`** if you want headless verification
    again — its OAuth session has expired, so the skill's budget recipes were not
    checked against a live Claude session.
