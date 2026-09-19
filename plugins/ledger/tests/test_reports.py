@@ -54,3 +54,30 @@ def test_transaction_filters(conn):
     assert [r["id"] for r in reports.transactions(conn, account="Visa")] == ["c1"]
     assert [r["id"] for r in reports.transactions(conn, min_cents=30000)] == ["i1", "t1"]
     assert reports.transactions(conn, limit=2).__len__() == 2
+
+
+def test_zero_available_balance_is_treated_as_unreported():
+    # SimpleFIN's available-balance is optional and several institutions send
+    # a literal 0 instead of omitting it, which emptied cash on hand.
+    assert reports.spendable_cents({"available_cents": 0, "balance_cents": 476406}) == 476406
+    assert reports.spendable_cents({"available_cents": None, "balance_cents": 476406}) == 476406
+    # A real available balance, including a real zero, is still believed.
+    assert reports.spendable_cents({"available_cents": 100193, "balance_cents": 100193}) == 100193
+    assert reports.spendable_cents({"available_cents": 0, "balance_cents": 0}) == 0
+    assert reports.spendable_cents({"available_cents": 500, "balance_cents": 476406}) == 500
+
+
+def test_hidden_accounts_drop_out_of_every_total(conn):
+    _seed(conn)
+    before = reports.totals(conn, "2026-09-01", "2026-10-01")
+    nw_before = reports.net_worth(conn)
+    hidden = conn.execute("SELECT id FROM accounts LIMIT 1").fetchone()["id"]
+    conn.execute("UPDATE accounts SET hidden = 1 WHERE id = ?", (hidden,))
+    conn.commit()
+    after = reports.totals(conn, "2026-09-01", "2026-10-01")
+    assert after["count"] < before["count"], "spending still counted a hidden account"
+    assert reports.net_worth(conn)["total_cents"] != nw_before["total_cents"]
+    assert all(a["id"] != hidden for a in reports.accounts(conn))
+    # Naming the account still finds its rows.
+    assert reports.transactions(conn, account=hidden)
+    assert all(t["account_id"] != hidden for t in reports.transactions(conn))

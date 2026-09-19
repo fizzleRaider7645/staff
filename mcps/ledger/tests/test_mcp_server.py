@@ -100,3 +100,19 @@ def test_run_sync_reports_failure_without_credentials_in_it(home):
 
     out = asyncio.run(_session(home, run))
     assert "error" in out and SECRET not in json.dumps(out)
+
+
+def test_launcher_refuses_an_interpreter_without_the_sdk(home, tmp_path):
+    # A plugin installed from a marketplace has no .venv, so the launcher
+    # builds one; it must never silently do that behind an interpreter the
+    # user named, and must say why that interpreter will not work.
+    import subprocess
+    import sys
+    bare = tmp_path / "bare"
+    subprocess.run([sys.executable, "-m", "venv", str(bare)], check=True, capture_output=True)
+    r = subprocess.run([str(LAUNCHER)], capture_output=True, text=True, timeout=60,
+                       env={**os.environ, "LEDGER_HOME": str(home),
+                            "LEDGER_PYTHON": str(bare / "bin" / "python")})
+    assert r.returncode == 1
+    assert "no 'mcp' package" in r.stderr
+    assert not (home / "mcp-venv").exists(), "it built a venv instead of reporting the problem"

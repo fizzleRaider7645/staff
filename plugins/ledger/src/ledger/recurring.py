@@ -95,6 +95,7 @@ def detect(conn: sqlite3.Connection, now: int) -> list[Series]:
                c.name AS category, c.kind AS category_kind
         FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
         WHERE t.removed_at IS NULL AND t.ignored = 0 AND t.pending = 0
+          AND t.account_id NOT IN (SELECT id FROM accounts WHERE hidden = 1)
           AND t.amount_cents <= 0 AND t.payee_key != ''
           AND COALESCE(c.kind, 'expense') NOT IN ('transfer', 'income')
         ORDER BY t.account_id, t.payee_key, t.posted""")

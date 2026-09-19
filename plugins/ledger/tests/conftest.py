@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from ledger import config, db
+from ledger import config, credentials, db
 from ledger.money import date_to_epoch
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -19,6 +19,10 @@ NOW = date_to_epoch("2026-09-15") + 12 * 3600  # 2026-09-15 noon local
 def home(tmp_path, monkeypatch):
     monkeypatch.setenv("LEDGER_HOME", str(tmp_path / "home"))
     monkeypatch.delenv("SIMPLEFIN_ACCESS_URL", raising=False)
+    # The Keychain is not scoped to LEDGER_HOME, so on a macOS machine that
+    # has really run `ledger setup` the suite would otherwise find live bank
+    # credentials and take the "configured" branch of every command.
+    monkeypatch.setattr(credentials, "_keychain_available", lambda: False)
     config.set_home(None)
     yield tmp_path / "home"
     config.set_home(None)

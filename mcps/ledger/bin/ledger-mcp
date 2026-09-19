@@ -1,15 +1,58 @@
 #!/bin/sh
 # Launch the ledger MCP server with an interpreter that has the MCP SDK.
-# Claude Desktop starts servers with a minimal PATH and /usr/bin/python3 is
-# too old, so the interpreter is resolved here: LEDGER_PYTHON if set, the
-# project's own .venv (created by the build command), then whatever python3
-# is on PATH as a last resort.
+#
+# The CLI is standard library only, but the server needs the `mcp` package.
+# Claude Desktop starts servers with a minimal PATH, /usr/bin/python3 is too
+# old, and a plugin installed from a marketplace has no .venv at all, so the
+# interpreter is resolved here and built if nothing on the machine will do.
+#
+# bin/ledger puts this directory's own src/ first on sys.path, so the venv
+# only ever has to supply the SDK; the code always comes from the plugin.
+set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+VENV="${LEDGER_HOME:-$HOME/.ledger}/mcp-venv"
+
+has_sdk() {
+  [ -n "$1" ] && [ -x "$1" ] && "$1" -c 'import mcp' >/dev/null 2>&1
+}
+
+PY=""
 if [ -n "$LEDGER_PYTHON" ]; then
-  PY="$LEDGER_PYTHON"
-elif [ -x "$ROOT/.venv/bin/python" ]; then
-  PY="$ROOT/.venv/bin/python"
+  # Named on purpose, so it is the answer or the error. Falling back to some
+  # other interpreter here would hide the reason this one does not work.
+  if has_sdk "$LEDGER_PYTHON"; then
+    PY="$LEDGER_PYTHON"
+  else
+    echo "ledger: LEDGER_PYTHON=$LEDGER_PYTHON has no 'mcp' package installed." >&2
+    echo "        Install it there, or unset LEDGER_PYTHON to let ledger build its own." >&2
+    exit 1
+  fi
 else
-  PY="$(command -v python3 || echo python3)"
+  for candidate in "$ROOT/.venv/bin/python" "$VENV/bin/python" "$(command -v python3 || true)"; do
+    if has_sdk "$candidate"; then PY="$candidate"; break; fi
+  done
 fi
+
+if [ -z "$PY" ]; then
+  BASE="$(command -v python3 || true)"
+  if [ -z "$BASE" ]; then
+    echo "ledger: no python3 on PATH. Install Python 3.11 or newer, or set LEDGER_PYTHON" >&2
+    echo "        to an interpreter that has the 'mcp' package." >&2
+    exit 1
+  fi
+  if ! "$BASE" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
+    echo "ledger: $BASE is older than Python 3.11. Set LEDGER_PYTHON to a newer one." >&2
+    exit 1
+  fi
+  # First run of a freshly installed plugin. Build the interpreter once, under
+  # the ledger home rather than inside the plugin, which a plugin update would
+  # replace and which may not be writable.
+  echo "ledger: preparing the MCP server (one-time setup in $VENV)" >&2
+  "$BASE" -m venv "$VENV" >&2
+  "$VENV/bin/python" -m pip install --quiet --upgrade pip >&2
+  "$VENV/bin/python" -m pip install --quiet 'mcp>=2,<3' >&2
+  PY="$VENV/bin/python"
+  echo "ledger: ready" >&2
+fi
+
 exec "$PY" "$ROOT/bin/ledger" mcp "$@"

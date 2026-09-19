@@ -85,6 +85,24 @@ dashboard into Cowork's folder on every sync.
 - **Categories** come from rules (yours > Claude's > imported > heuristic),
   then a service catalog (Netflix, Spotify, PG&E…), then keyword heuristics.
   Transfers between your own accounts are paired and excluded from spending.
+  Nothing inside an investment or loan account counts as household spending
+  or income: buying an ETF, a 401(k) contribution landing and a loan's
+  disbursement are all movement, though a fee charged inside one is real.
+  Paying a card the ledger already holds is a transfer even when the two
+  halves never match exactly; paying one it does not hold is the only trace
+  of that spending, so it stays an expense under **Card Payments** until the
+  card is connected, at which point both halves become a transfer.
+- **Accounts** are typed from the account name, then the balance, then the
+  institution: issuers put the product name ("Venture", "Chase Freedom") in
+  place of the word "card", and a "SAVINGS PLAN" is usually a 401(k).
+  `ledger accounts set-kind` overrides one for good; `ledger accounts
+  reclassify` re-runs the guess over the rest. `ledger accounts hide` drops
+  an account from every total, which is what you want when an institution
+  reports the same money twice — SoFi lists each savings vault as its own
+  account *and* inside the parent balance.
+- **Cash on hand** falls back to the balance when an institution reports an
+  available balance of zero against a positive balance, which several of them
+  do instead of omitting the field.
 - **Recurring detection** groups charges by normalized payee, classifies the
   median gap (weekly, biweekly, monthly, quarterly, annual) and separates
   subscriptions (steady amount) from bills (variable). Series ids are stable
@@ -94,6 +112,13 @@ dashboard into Cowork's folder on every sync.
 - **Credentials** live in macOS Keychain (`security`), or `SIMPLEFIN_ACCESS_URL`
   for non-interactive use. Error messages are redacted. Nothing under
   `~/.ledger` contains the access URL.
+
+The MCP server needs the `mcp` SDK, which the standard-library CLI does not.
+`bin/ledger-mcp` finds an interpreter that has it: `LEDGER_PYTHON` if you set
+one (authoritative — it fails rather than quietly using another), then the
+project's `.venv`, then one it builds itself under `~/.ledger/mcp-venv`. A
+plugin installed from a marketplace ships no `.venv`, so its first launch
+does that build once and prints a line about it.
 
 ## Development
 

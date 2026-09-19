@@ -762,5 +762,32 @@
       "AMZN MKTP",
       "AMAZON MARKETPLACE"
     ]
+  },
+  {
+    "id": "simplisafe",
+    "name": "SimpliSafe",
+    "tags": [
+      "home security"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "sofi-plus",
+    "name": "SoFi Plus",
+    "tags": [
+      "membership"
+    ],
+    "category": "Subscriptions"
+  },
+  {
+    "id": "gq-box",
+    "name": "GQ Box",
+    "tags": [
+      "subscription box"
+    ],
+    "category": "Subscriptions",
+    "aliases": [
+      "GQ BEST STUFF BOX"
+    ]
   }
 ]
