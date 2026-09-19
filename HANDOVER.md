@@ -68,22 +68,29 @@ the Keychain, so on a macOS machine that has really run `ledger setup` the
 suite found live bank credentials — which is why CI was green while the
 suite failed here.
 
-## Two calls to check
+## One call still to check
 
-Both are single-command reversals and both were judgement calls made without
-you.
+**`ACH: Lowes` $5,688.17 stayed Shopping.** It could be a Lowe's store-card
+payment, which would make it Card Payments. It does not recur, the Lowe's
+purchases on the Venture card are small, and it was not in the list of
+unlinked cards you gave, so it was left as a purchase. It is the reason
+September Shopping reads $7,763. To flip it:
+`ledger rules add "ACH LOWES" --category "Card Payments"`.
 
-1. **`FREEDOM` → Housing.** The handover read these as transfers to Chase
-   Freedom. The data says otherwise: Chase Freedom is paid from Checking-9538
-   as "ACH: CHASE CREDIT CRD", while `FREEDOM` is a monthly $2,653.95 from
-   Capital One 360 Checking that stepped to $2,729.14 in September, which
-   looks like a mortgage with an escrow change. Read as Freedom Mortgage.
-   If that is wrong: `ledger rules remove 2` then re-add.
-2. **`ACH: Lowes` $5,688.17 stayed Shopping.** It could be a Lowe's store-card
-   payment, which would make it Card Payments. It does not recur, the Lowe's
-   purchases on the Venture card are small, and it was not in the list of
-   unlinked cards you gave, so it was left as a purchase. It is the reason
-   September Shopping reads $7,763.
+`FREEDOM` was the other one and is settled: Doug confirmed Freedom Mortgage
+services one of his loans, so rule 2 (`FREEDOM` → Housing) is right. The
+earlier reading of these as Chase Freedom card payments was wrong; Chase
+Freedom is paid from Checking-9538 as "ACH: CHASE CREDIT CRD". The rule stays
+a user rule rather than a shipped keyword, because a bare "FREEDOM" would
+catch Chase Freedom card payments for anyone else.
+
+## Net worth leaves the mortgages out
+
+Neither mortgage servicer is a SimpleFIN connection — Freedom Mortgage and
+Guaranteed Rate are only visible as outgoing payments, and the only loan
+account on file is the SoFi personal loan. So $155,111.36 counts neither the
+properties nor the debt against them. Connecting the mortgages, if the
+servicers support it, would make that number mean what it says.
 
 ## Still uncategorized
 
