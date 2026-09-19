@@ -68,21 +68,30 @@ the Keychain, so on a macOS machine that has really run `ledger setup` the
 suite found live bank credentials — which is why CI was green while the
 suite failed here.
 
-## One call still to check
+## Both classification calls are settled
 
-**`ACH: Lowes` $5,688.17 stayed Shopping.** It could be a Lowe's store-card
-payment, which would make it Card Payments. It does not recur, the Lowe's
-purchases on the Venture card are small, and it was not in the list of
-unlinked cards you gave, so it was left as a purchase. It is the reason
-September Shopping reads $7,763. To flip it:
-`ledger rules add "ACH LOWES" --category "Card Payments"`.
+`FREEDOM` is Freedom Mortgage, servicing one of Doug's mortgages, so rule 2
+(`FREEDOM` → Housing) is right. The earlier reading of these as Chase Freedom
+card payments was wrong; Chase Freedom is paid from Checking-9538 as
+"ACH: CHASE CREDIT CRD".
 
-`FREEDOM` was the other one and is settled: Doug confirmed Freedom Mortgage
-services one of his loans, so rule 2 (`FREEDOM` → Housing) is right. The
-earlier reading of these as Chase Freedom card payments was wrong; Chase
-Freedom is paid from Checking-9538 as "ACH: CHASE CREDIT CRD". The rule stays
-a user rule rather than a shipped keyword, because a bare "FREEDOM" would
-catch Chase Freedom card payments for anyone else.
+`ACH: Lowes` $5,688.17 is a Lowe's store-card payment, now rule 19
+(`ACH LOWES` → Card Payments). The two small `LOWES` purchases on the Venture
+card normalize to a different payee key and stay Shopping, which dropped
+September Shopping from $7,763 to $2,075.
+
+Both stay user rules rather than shipped keywords. A bare "FREEDOM" would
+catch Chase Freedom card payments for anyone else, and an ACH to a retailer
+is as often a special order as a store-card payment.
+
+## The biggest remaining data gap is the unlinked cards
+
+$24,839 of September's $36,096 "spending" is payments to cards that are not
+SimpleFIN connections — Bilt, Citizens, Barclaycard, Apple Card and now
+Lowe's. The category is honest, but the purchases behind it are invisible, so
+no category breakdown for that money exists. Connecting those cards would
+move it into real categories and convert the payments to transfers on their
+own, with no rule changes needed.
 
 ## Net worth leaves the mortgages out
 
