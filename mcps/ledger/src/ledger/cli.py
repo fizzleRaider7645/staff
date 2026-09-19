@@ -94,6 +94,16 @@ def cmd_setup(args) -> int:
 def cmd_sync(args) -> int:
     url = require_access_url()
     conn = open_db()
+    if getattr(args, "gaps", False):
+        gaps = sync.backfill_gaps(conn, url, db.now_epoch(), simplefin.fetch_accounts)
+        categorize.categorize(conn)
+        emit(args, {"gaps": gaps}, lambda: (
+            table([[g["name"], g["requested_from"], g["requested_to"], g["missing_days"], g["gained"]]
+                   for g in gaps], ["ACCOUNT", "FROM", "TO", "DAYS MISSING", "RECOVERED"], right={3, 4}),
+            print("\nnothing recovered — the bridge has no history from before these accounts were linked"
+                  if gaps and not any(g["gained"] for g in gaps) else
+                  "no accounts are missing history" if not gaps else "")))
+        return EXIT_OK
     try:
         results = sync.run(conn, url, max_requests=args.max_requests)
     except sync.BudgetExhausted as e:
@@ -339,6 +349,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--max-requests", type=int, default=6, metavar="N", help="SimpleFIN requests this run may spend (default 6)")
     s.add_argument("--no-dashboard", action="store_true", help="skip regenerating the dashboard")
     s.add_argument("--export", action="store_true", help="also write the Cowork export (see: ledger export)")
+    s.add_argument("--gaps", action="store_true",
+                   help="ask the bridge again for history that accounts linked later are missing")
     s.set_defaults(fn=cmd_sync)
 
     s = sub.add_parser("accounts", help="list accounts and net worth")

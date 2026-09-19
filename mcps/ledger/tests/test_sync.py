@@ -221,3 +221,33 @@ def test_reclassify_updates_heuristic_kinds_but_not_user_ones(conn):
     changed = {c["id"]: c["kind"] for c in sync.reclassify_accounts(conn)}
     assert changed == {"card": "credit", "plan": "investment"}
     assert db.one(conn, "SELECT kind FROM accounts WHERE id = 'mine'")["kind"] == "investment"
+
+
+def test_history_gaps_ignore_an_account_that_merely_started_a_day_later(conn):
+    bridge = FakeBridge([
+        account("a", "Checking", "100.00", transactions=[tx("a1", "2026-06-21", "-10.00", "SHOP")]),
+        account("b", "Savings", "100.00", transactions=[tx("b1", "2026-06-23", "-10.00", "SHOP")]),
+        account("c", "Later", "100.00", transactions=[tx("c1", "2026-08-27", "-10.00", "SHOP")]),
+    ])
+    sync.run(conn, "u", now=NOW, fetch=bridge, max_requests=4)
+    gaps = sync.history_gaps(conn)
+    assert [g["name"] for g in gaps] == ["Later"], "two days is when the charge landed, not a gap"
+    assert gaps[0]["missing_days"] == 67
+
+
+def test_a_barren_gapfill_gives_up_instead_of_asking_forever(conn):
+    bridge = FakeBridge([
+        account("a", "Checking", "100.00", transactions=[tx("a1", "2026-06-21", "-10.00", "SHOP")]),
+        account("c", "Later", "100.00", transactions=[tx("c1", "2026-08-27", "-10.00", "SHOP")]),
+    ])
+    sync.run(conn, "u", now=NOW, fetch=bridge, max_requests=4)
+    asked = []
+
+    def barren(url, start=None, end=None, **kw):
+        asked.append(kw.get("account_ids"))
+        return {"errlist": [], "accounts": []}
+
+    for _ in range(4):
+        sync.backfill_gaps(conn, "u", NOW, barren, max_requests=2)
+    assert len(asked) == sync.GAPFILL_MAX_ATTEMPTS, "it must stop spending requests on the same silence"
+    assert asked[0] == ["c"], "only the account that is missing history is requested"
