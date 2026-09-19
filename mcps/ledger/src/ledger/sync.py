@@ -20,7 +20,7 @@ import sqlite3
 import time
 from dataclasses import dataclass, field
 
-from ledger import categorize, db, simplefin
+from ledger import categorize, db, match, simplefin
 from ledger.money import epoch_to_date, parse_cents
 from ledger.normalize import payee_key
 
@@ -81,6 +81,7 @@ def budget_available(conn: sqlite3.Connection, now: int, ceiling: int = DAILY_CE
 # Retirement and equity plans first: "MY SAVINGS PLAN" is a 401(k), not a
 # savings account, and "RESTRICTED STOCK UNITS" is a brokerage account.
 INVESTMENT_WORDS = ("401", "403B", "403(B)", "457", "IRA", "ROTH", "BROKERAGE", "INVEST",
+                    "INVESTMENT", "INVESTMENTS", "INVESTING",
                     "HSA", "529", "SAVINGS PLAN", "RETIREMENT", "PENSION", "RSU",
                     "RESTRICTED STOCK", "STOCK PLAN", "ESPP", "THRIFT SAVINGS", "ANNUITY")
 # Card product names. Issuers rarely put "credit" or "card" in the account
@@ -90,43 +91,32 @@ CREDIT_WORDS = ("CREDIT", "CARD", "VISA", "MASTERCARD", "AMEX", "AMERICAN EXPRES
                 "SLATE", "CUSTOM CASH", "DOUBLE CASH", "BLUE CASH", "ACTIVE CASH", "AUTOGRAPH",
                 "PLATINUM", "GOLD DELTA", "SKYMILES", "REWARDS")
 LOAN_WORDS = ("MORTGAGE", "LOAN", "AUTO FIN", "HELOC")
-SAVINGS_WORDS = ("SAVING", "MONEY MARKET", "VAULT", "CERTIFICATE OF DEPOSIT")
+SAVINGS_WORDS = ("SAVING", "SAVINGS", "MONEY MARKET", "VAULT", "CERTIFICATE OF DEPOSIT")
 CHECKING_WORDS = ("CHECKING", "CHEQUING", "SPENDING", "EVERYDAY", "CASH MANAGEMENT")
 # When the name says nothing, the institution still might: an unclassified
 # account at a brokerage is a brokerage account.
 INVESTMENT_ORGS = ("FIDELITY", "VANGUARD", "SCHWAB", "ROBINHOOD", "E*TRADE", "ETRADE",
+                   "INVESTMENT", "INVESTMENTS", "INVESTING",
                    "MERRILL", "AMERITRADE", "INTERACTIVE BROKERS", "BETTERMENT",
                    "WEALTHFRONT", "INVEST", "SECURITIES", "STASH", "M1 FINANCE")
 
 
-def _mentions(text: str, words) -> bool:
-    """Substring match, except that a word ending in a digit or a short
-    all-caps token has to stand alone: "IRA" must not match "MIRAMAR"."""
-    for w in words:
-        if len(w) <= 4:
-            if re.search(r"(?<![A-Z0-9])" + re.escape(w) + r"(?![A-Z0-9])", text):
-                return True
-        elif w in text:
-            return True
-    return False
-
-
 def account_kind(name: str, balance_cents: int | None = None, org: str | None = None) -> str:
     n = (name or "").upper()
-    if _mentions(n, INVESTMENT_WORDS):
+    if match.any_mention(n, INVESTMENT_WORDS):
         return "investment"
-    if _mentions(n, CREDIT_WORDS):
+    if match.any_mention(n, CREDIT_WORDS):
         return "credit"
-    if _mentions(n, LOAN_WORDS):
+    if match.any_mention(n, LOAN_WORDS):
         return "loan"
-    if _mentions(n, SAVINGS_WORDS):
+    if match.any_mention(n, SAVINGS_WORDS):
         return "savings"
-    if _mentions(n, CHECKING_WORDS):
+    if match.any_mention(n, CHECKING_WORDS):
         return "checking"
     if balance_cents is not None and balance_cents < 0:
         # Owing money with nothing in the name that says loan: a card.
         return "credit"
-    if org and _mentions(org.upper(), INVESTMENT_ORGS):
+    if org and match.any_mention(org, INVESTMENT_ORGS):
         return "investment"
     return "unknown"
 
